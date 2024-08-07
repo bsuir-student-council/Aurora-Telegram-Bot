@@ -27,3 +27,4 @@ aurora-telegram-bot/mvnw.cmd
 /aurora-telegram-bot/.mvn
 /aurora-telegram-bot/.idea
 /aurora-telegram-bot/target
+aurora-telegram-bot/src/main/resources/application.properties

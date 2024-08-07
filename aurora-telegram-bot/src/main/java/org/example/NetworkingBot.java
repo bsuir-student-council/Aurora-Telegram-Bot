@@ -68,7 +68,8 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     private void setMyCommands() {
         List<BotCommand> commands = List.of(
                 new BotCommand("/profile", "Моя анкета"),
-                new BotCommand("/help", "Помощь")
+                new BotCommand("/help", "Помощь"),
+                new BotCommand("/restart","Заново")
         );
 
         try {
@@ -105,16 +106,15 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     }
 
     private void handleCallbackQuery(Long userId, String callbackData, Update update) {
+        Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
         switch (callbackData) {
-            case "start" -> handleEditStartMessage(userId, update.getCallbackQuery().getMessage().getMessageId());
-            case "accepted" -> handleEditInfoMessage(userId, update.getCallbackQuery().getMessage().getMessageId());
-            case "toggle_visibility" -> {
-                userInfoService.toggleVisibility(userId);
-                handleEditProfileCommand(userId, update.getCallbackQuery().getMessage().getMessageId());
-            }
+            case "start" -> handleEditStartMessage(userId, messageId);
+            case "accepted" -> handleEditInfoMessage(userId, messageId);
+            case "toggle_visibility" -> handleToggleVisibility(userId, messageId);
             default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
     }
+
 
     private void handleSupportCommand(Long userId) {
         Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
@@ -156,7 +156,7 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     }
 
     private void handleDialogMode(Long userId, String message) {
-        DialogMode currentMode = userModes.get(userId);
+        DialogMode currentMode = userModes.getOrDefault(userId, null);
         if (currentMode == null) {
             sendTextMessage(userId, "Пожалуйста, начните с команды /start.");
             return;
@@ -165,6 +165,7 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
         switch (currentMode) {
             case PROFILE -> handleProfileDialog(userId, message);
             case SUPPORT -> handleSupportDialog(userId, message);
+            default -> sendTextMessage(userId, "Неизвестный режим диалога.");
         }
     }
 
@@ -199,52 +200,55 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     }
 
     private void handleProfileDialog(Long userId, String message) {
-        int questionCount = userQuestionCounts.get(userId);
-        UserInfo userInfo = userInfos.get(userId);
-
         if (message.length() > 255) {
             sendTextMessage(userId, "Ваш ввод слишком длинный. Пожалуйста, сократите его до 255 символов.");
             return;
         }
 
+        UserInfo userInfo = userInfos.get(userId);
+        int questionCount = userQuestionCounts.getOrDefault(userId, 1);
+
         switch (questionCount) {
-            case 1 -> {
-                userInfo.setName(message);
-                userQuestionCounts.put(userId, 2);
-                sendTextMessage(userId, "Пожалуйста, укажите ваш возраст.");
-            }
-            case 2 -> {
-                userInfo.setAge(message);
-                userQuestionCounts.put(userId, 3);
-                sendTextMessage(userId, "👀 Что бы вы хотели обсудить?");
-            }
-            case 3 -> {
-                userInfo.setDiscussionTopic(message);
-                userQuestionCounts.put(userId, 4);
-                sendTextMessage(userId, "Пожалуйста, поделитесь интересным фактом о себе.");
-            }
-            case 4 -> {
-                userInfo.setFunFact(message);
-                try {
-                    userInfoService.saveUserInfo(userInfo);
-                    // Отправляем сообщение с профилем пользователя
-                    sendUserProfile(userId, userInfo);
-                    userModes.remove(userId); // Сбрасываем режим после завершения анкеты
-                } catch (Exception e) {
-                    sendTextMessage(userId, "Произошла ошибка при сохранении профиля. Пожалуйста, попробуйте снова.");
-                }
-            }
+            case 1 -> handleNameInput(userId, userInfo, message);
+            case 2 -> handleAgeInput(userId, userInfo, message);
+            case 3 -> handleDiscussionTopicInput(userId, userInfo, message);
+            case 4 -> handleFunFactInput(userId, userInfo, message);
+            default -> sendTextMessage(userId, "Неизвестный этап анкеты.");
+        }
+    }
+
+    private void handleNameInput(Long userId, UserInfo userInfo, String message) {
+        userInfo.setName(message);
+        userQuestionCounts.put(userId, 2);
+        sendTextMessage(userId, "Пожалуйста, укажите ваш возраст.");
+    }
+
+    private void handleAgeInput(Long userId, UserInfo userInfo, String message) {
+        userInfo.setAge(message);
+        userQuestionCounts.put(userId, 3);
+        sendTextMessage(userId, "👀 Что бы вы хотели обсудить?");
+    }
+
+    private void handleDiscussionTopicInput(Long userId, UserInfo userInfo, String message) {
+        userInfo.setDiscussionTopic(message);
+        userQuestionCounts.put(userId, 4);
+        sendTextMessage(userId, "Пожалуйста, поделитесь интересным фактом о себе.");
+    }
+
+    private void handleFunFactInput(Long userId, UserInfo userInfo, String message) {
+        userInfo.setFunFact(message);
+        try {
+            userInfoService.saveUserInfo(userInfo);
+            sendUserProfile(userId, userInfo);
+            userModes.remove(userId);
+        } catch (Exception e) {
+            sendTextMessage(userId, "Произошла ошибка при сохранении профиля. Пожалуйста, попробуйте снова.");
         }
     }
 
     private void sendUserProfile(Long userId, UserInfo userInfo) {
         String photoUrl = getUserPhotoUrl(userId);
-        String userAlias = getUserAlias(userId);
-        boolean isAliasValid = userAlias != null && !userAlias.equals("@null");
-        String contactInfo = isAliasValid ? userAlias : String.format("<a href=\"tg://user?id=%d\">Профиль пользователя</a>", userId);
-        String visibilityStatus = userInfo.getIsVisible() ? "\n✅ Ваша анкета видна." : "\n❌ На данный момент вашу анкету никто не видит.";
-
-        String profileMessage = "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n" + userInfoService.formatUserProfile(userInfo, contactInfo) + visibilityStatus;
+        String profileMessage = formatUserProfileMessage(userId, userInfo);
 
         if (photoUrl != null) {
             sendPhotoMessage(userId, photoUrl, true);
@@ -264,35 +268,59 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
         askFullName(userId);
     }
 
+    private void handleToggleVisibility(Long userId, Integer messageId) {
+        userInfoService.toggleVisibility(userId);
+        handleEditProfileCommand(userId, messageId);
+    }
+
     private void handleEditProfileCommand(Long userId, Integer messageId) {
-        UserInfo userInfo = userInfoService.getUserInfoByUserId(userId).orElseThrow();
+        UserInfo userInfo = userInfoService.getUserInfoByUserId(userId)
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        String updatedMessage = formatUserProfileMessage(userId, userInfo);
+        editTextMessageWithButtons(
+                userId,
+                messageId,
+                updatedMessage,
+                "Редактировать", "accepted",
+                "Сменить статус видимости", "toggle_visibility"
+        );
+    }
+
+    private String formatUserProfileMessage(Long userId, UserInfo userInfo) {
         String userAlias = getUserAlias(userId);
-        boolean isAliasValid = userAlias != null && !userAlias.equals("@null");
-        String contactInfo = isAliasValid ? userAlias : String.format("<a href=\"tg://user?id=%d\">Профиль пользователя</a>", userId);
-        String visibilityStatus = userInfo.getIsVisible() ? "\n✅ Ваша анкета видна." : "\n❌ На данный момент вашу анкету никто не видит.";
+        String contactInfo = (userAlias != null && !userAlias.equals("@null"))
+                ? userAlias
+                : String.format("<a href=\"tg://user?id=%d\">Профиль пользователя</a>", userId);
 
-        String updatedMessage = "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n" + userInfoService.formatUserProfile(userInfo, contactInfo) + visibilityStatus;
+        String visibilityStatus = userInfo.getIsVisible()
+                ? "\n✅ Ваша анкета видна."
+                : "\n❌ На данный момент вашу анкету никто не видит.";
 
-        editTextMessageWithButtons(userId, messageId, updatedMessage, "Редактировать", "accepted", "Сменить статус видимости", "toggle_visibility");
+        String profileMessage = String.format(
+                "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n%s%s",
+                userInfoService.formatUserProfile(userInfo, contactInfo),
+                visibilityStatus
+        );
+
+        return profileMessage;
     }
 
     private void askFullName(Long userId) {
         userModes.put(userId, DialogMode.PROFILE);
         userQuestionCounts.put(userId, 1);
 
-        userInfoService.getUserInfoByUserId(userId).ifPresentOrElse(
-                existingUserInfo -> {
-                    existingUserInfo.setUserId(userId);
-                    userInfos.put(userId, existingUserInfo);
-                    sendTextMessage(userId, "Пожалуйста, укажите ваше фамилию и имя.");
-                },
-                () -> {
-                    UserInfo userInfo = new UserInfo();
-                    userInfo.setUserId(userId);
-                    userInfos.put(userId, userInfo);
-                    sendPhotoMessage(userId, "name", false);
-                    sendTextButtonsMessage(userId, "Пожалуйста, укажите ваше фамилию и имя.");
-                }
-        );
+        UserInfo userInfo = userInfoService.getUserInfoByUserId(userId)
+                .orElseGet(() -> {
+                    UserInfo newUserInfo = new UserInfo();
+                    newUserInfo.setUserId(userId);
+                    return newUserInfo;
+                });
+
+        userInfos.put(userId, userInfo);
+        sendPhotoMessage(userId, "name", false);
+
+        String message = "Пожалуйста, укажите ваше имя.";
+        sendTextMessage(userId, message);
     }
 }

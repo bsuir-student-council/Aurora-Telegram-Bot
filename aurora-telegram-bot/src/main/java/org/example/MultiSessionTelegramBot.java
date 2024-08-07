@@ -130,6 +130,7 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
     public static String loadMessage(String name) {
         try {
             var is = ClassLoader.getSystemResourceAsStream("messages/" + name + ".txt");
+            assert is != null;
             return new String(is.readAllBytes());
         } catch (IOException e) {
             throw new RuntimeException("Can't load message!");
@@ -158,23 +159,7 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return null;
     }
 
-    // Получение алиаса пользователя
     public String getUserAlias(Long userId) {
-        Update update = userUpdates.get(userId);
-        if (update.hasMessage() && update.getMessage().getFrom() != null) {
-            String userName = update.getMessage().getFrom().getUserName();
-            return userName != null ? "@" + userName : null;
-        }
-
-        if (update.hasCallbackQuery() && update.getCallbackQuery().getFrom() != null) {
-            String userName = update.getCallbackQuery().getFrom().getUserName();
-            return userName != null ? "@" + userName : null;
-        }
-
-        return null;
-    }
-
-    public String getUserAliasWithoutUpdate(Long userId) {
         GetChat getChat = new GetChat();
         getChat.setChatId(userId.toString());
 

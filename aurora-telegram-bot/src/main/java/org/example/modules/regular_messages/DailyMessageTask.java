@@ -14,10 +14,11 @@ import java.util.List;
 @Component
 public class DailyMessageTask {
 
+    private static final Logger logger = LoggerFactory.getLogger(DailyMessageTask.class);
+
     private final UserInfoService userInfoService;
     private final DailyMessageService dailyMessageService;
     private final NetworkingBot networkingBot;
-    private final Logger logger = LoggerFactory.getLogger(DailyMessageTask.class);
 
     @Autowired
     public DailyMessageTask(UserInfoService userInfoService, DailyMessageService dailyMessageService, NetworkingBot networkingBot) {
@@ -28,10 +29,17 @@ public class DailyMessageTask {
 
     @Scheduled(cron = "0 0 18 * * *") // 18:00
     public void sendDailyMessage() {
+        logger.info("Starting daily message task.");
+
         List<UserInfo> users = userInfoService.getAllUsers();
+        logger.debug("Retrieved {} users.", users.size());
+
         dailyMessageService.getUnsentDailyMessage().ifPresentOrElse(dailyMessage -> {
             String text = dailyMessage.getText();
-            users.forEach(user -> networkingBot.sendTextMessage(user.getUserId(), text));
+            users.forEach(user -> {
+                networkingBot.sendTextMessage(user.getUserId(), text);
+                logger.debug("Sent message to user: {}", user.getUserId());
+            });
             dailyMessage.setSent(true);
             dailyMessageService.saveDailyMessage(dailyMessage);
             logger.info("Daily message sent to all users.");
