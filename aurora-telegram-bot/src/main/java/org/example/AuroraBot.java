@@ -27,7 +27,7 @@ import jakarta.annotation.PostConstruct;
 
 @Component
 @NoArgsConstructor
-public class NetworkingBot extends MultiSessionTelegramBot implements CommandLineRunner {
+public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRunner {
 
     private final ConcurrentHashMap<Long, DialogMode> userModes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, UserInfo> userInfos = new ConcurrentHashMap<>();
@@ -37,7 +37,7 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     private SupportRequestService supportRequestService;
 
     @Autowired
-    public NetworkingBot(UserInfoService userInfoService, SupportRequestService supportRequestService) {
+    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService) {
         this.userInfoService = userInfoService;
         this.supportRequestService = supportRequestService;
     }

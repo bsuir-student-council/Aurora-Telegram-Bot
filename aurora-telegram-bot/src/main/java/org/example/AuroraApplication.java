@@ -6,9 +6,9 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-public class NetworkingBotApplication {
+public class AuroraApplication {
 
     public static void main(String[] args) {
-        SpringApplication.run(NetworkingBotApplication.class, args);
+        SpringApplication.run(AuroraApplication.class, args);
     }
 }

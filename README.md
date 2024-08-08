@@ -7,6 +7,7 @@
 - [Установка](#установка)
 - [Конфигурация](#конфигурация)
 - [Запуск](#запуск)
+- [Команды Telegram-Бота](#команды-telegram-бота)
 - [Автоматические скрипты](#автоматические-скрипты)
 - [Структура проекта](#структура-проекта)
 - [Лицензия](#лицензия)
@@ -48,7 +49,7 @@ special.user.id=YOUR_SPECIAL_USER_ID
 
     ```bash
     git clone https://github.com/Daniil-Tiunchyk/Aurora-Telegram-Bot
-    cd NetWorking-TG-Bot
+    cd aurora-telegram-bot
     ```
 
 2. Установите зависимости и соберите проект:
@@ -62,6 +63,20 @@ special.user.id=YOUR_SPECIAL_USER_ID
     ```bash
     mvn spring-boot:run
     ```
+
+## Команды Telegram-Бота
+
+**Команды пользователя:**
+
+- **`/start`**: Инициализация работы с ботом и начало взаимодействия.
+- **`/restart`**: Перезапуск процесса заполнения анкеты.
+- **`/profile`**: Просмотр текущей анкеты пользователем.
+- **`/help`**: Получение справочной информации о функционале бота и доступных командах.
+- **`/support`**: Отправка запроса в техническую поддержку.
+
+**Команды администратора:**
+
+- **`/admin`**: Отображение всех доступных команд с кратким описанием. Доступно только пользователям с правами администратора.
 
 ## Автоматические скрипты
 
@@ -97,7 +112,7 @@ Aurora использует три ключевых скрипта, работа
 ## Структура проекта
 
 ```plaintext
-Felicitas/
+aurora-telegram-bot/
 ├── src/
 │   ├── main/
 │   │   ├── java/
@@ -126,12 +141,16 @@ Felicitas/
 │   │   │           ├── services/
 │   │   │           │   ├── SupportRequestService.java
 │   │   │           │   └── UserInfoService.java
-│   │   │           ├── MultiSessionTelegramBot.java
-│   │   │           ├── NetworkingBot.java
-│   │   │           └── NetworkingBotApplication.java
+│   │   │           ├── AuroraBot.java
+│   │   │           ├── AuroraBotApplication.java
+│   │   │           └── MultiSessionTelegramBot.java
 │   │   ├── resources/
 │   │   │   ├── images/
+│   │   │   │   └── name.jpg
 │   │   │   ├── messages/
+│   │   │   │   ├── help.txt
+│   │   │   │   ├── info.txt
+│   │   │   │   └── start.txt
 │   │   │   └── application.properties
 ├── pom.xml
 ```

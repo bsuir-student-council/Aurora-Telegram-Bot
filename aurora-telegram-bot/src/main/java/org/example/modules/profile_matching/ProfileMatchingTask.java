@@ -1,7 +1,7 @@
 package org.example.modules.profile_matching;
 
 import org.example.models.UserInfo;
-import org.example.NetworkingBot;
+import org.example.AuroraBot;
 import org.example.services.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,16 +20,16 @@ import static org.example.modules.profile_matching.TextSimilarity.processUserInf
 public class ProfileMatchingTask {
 
     private final UserInfoService userInfoService;
-    private final NetworkingBot networkingBot;
+    private final AuroraBot auroraBot;
     private final Logger logger = LoggerFactory.getLogger(ProfileMatchingTask.class);
 
     @Value("${special.user.id}")
     private Long specialUserId;
 
     @Autowired
-    public ProfileMatchingTask(UserInfoService userInfoService, NetworkingBot networkingBot) {
+    public ProfileMatchingTask(UserInfoService userInfoService, AuroraBot auroraBot) {
         this.userInfoService = userInfoService;
-        this.networkingBot = networkingBot;
+        this.auroraBot = auroraBot;
     }
 
     @Scheduled(cron = "0 0 11 * * ?") // 11:00
@@ -90,8 +90,8 @@ public class ProfileMatchingTask {
     }
 
     private void sendUserProfile(Long userId, UserInfo userInfo) {
-        String photoUrl = networkingBot.getUserPhotoUrl(userInfo.getUserId());
-        String userAlias = networkingBot.getUserAlias(userInfo.getUserId());
+        String photoUrl = auroraBot.getUserPhotoUrl(userInfo.getUserId());
+        String userAlias = auroraBot.getUserAlias(userInfo.getUserId());
         boolean isAliasValid = userAlias != null && !userAlias.equals("@null");
 
         String contactInfo = isAliasValid ? userAlias :
@@ -109,8 +109,8 @@ public class ProfileMatchingTask {
         );
 
         if (photoUrl != null) {
-            networkingBot.sendPhotoMessage(userId, photoUrl, true);
+            auroraBot.sendPhotoMessage(userId, photoUrl, true);
         }
-        networkingBot.sendTextMessage(userId, profileMessage);
+        auroraBot.sendTextMessage(userId, profileMessage);
     }
 }

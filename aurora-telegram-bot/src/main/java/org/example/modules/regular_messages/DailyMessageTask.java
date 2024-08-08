@@ -2,7 +2,7 @@ package org.example.modules.regular_messages;
 
 import org.example.models.UserInfo;
 import org.example.services.UserInfoService;
-import org.example.NetworkingBot;
+import org.example.AuroraBot;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
@@ -18,13 +18,13 @@ public class DailyMessageTask {
 
     private final UserInfoService userInfoService;
     private final DailyMessageService dailyMessageService;
-    private final NetworkingBot networkingBot;
+    private final AuroraBot auroraBot;
 
     @Autowired
-    public DailyMessageTask(UserInfoService userInfoService, DailyMessageService dailyMessageService, NetworkingBot networkingBot) {
+    public DailyMessageTask(UserInfoService userInfoService, DailyMessageService dailyMessageService, AuroraBot auroraBot) {
         this.userInfoService = userInfoService;
         this.dailyMessageService = dailyMessageService;
-        this.networkingBot = networkingBot;
+        this.auroraBot = auroraBot;
     }
 
     @Scheduled(cron = "0 0 18 * * *") // 18:00
@@ -37,7 +37,7 @@ public class DailyMessageTask {
         dailyMessageService.getUnsentDailyMessage().ifPresentOrElse(dailyMessage -> {
             String text = dailyMessage.getText();
             users.forEach(user -> {
-                networkingBot.sendTextMessage(user.getUserId(), text);
+                auroraBot.sendTextMessage(user.getUserId(), text);
                 logger.debug("Sent message to user: {}", user.getUserId());
             });
             dailyMessage.setSent(true);
