@@ -69,7 +69,7 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
         List<BotCommand> commands = List.of(
                 new BotCommand("/profile", "Моя анкета"),
                 new BotCommand("/help", "Помощь"),
-                new BotCommand("/restart","Заново")
+                new BotCommand("/restart", "Заново")
         );
 
         try {
@@ -101,6 +101,7 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
             case "/help" -> handleHelpCommand(userId);
             case "/restart" -> handleRestartCommand(userId);
             case "/support" -> handleSupportCommand(userId);
+            case "/admin" -> handleAdminCommand(userId);
             default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
     }
@@ -115,21 +116,15 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
         }
     }
 
-
     private void handleSupportCommand(Long userId) {
-        Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
-        if (lastRequest.isPresent()) {
-            LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
-            Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
-            if (duration.toMinutes() < 15) {
-                long minutesLeft = 15 - duration.toMinutes();
-                sendTextMessage(userId, String.format("Вы уже отправили запрос в техподдержку недавно. Пожалуйста, подождите ещё %d минут.", minutesLeft));
-                return;
-            }
+        if (isRequestTooFrequent(userId)) {
+            return;
         }
 
         userModes.put(userId, DialogMode.SUPPORT);
-        sendTextMessage(userId, "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
+        sendTextMessage(userId,
+                "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. " +
+                        "Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
     }
 
     private void handleHelpCommand(Long userId) {
@@ -170,26 +165,42 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
     }
 
     private void handleSupportDialog(Long userId, String message) {
-        if (message.length() > 2000) {
+        if (isMessageTooLong(message)) {
             sendTextMessage(userId, "Ваше сообщение слишком длинное. Пожалуйста, сократите его до 2000 символов.");
             return;
         }
 
+        if (isRequestTooFrequent(userId)) {
+            return;
+        }
+
+        createAndSaveSupportRequest(userId, message);
+    }
+
+    private boolean isMessageTooLong(String message) {
+        return message.length() > 2000;
+    }
+
+    private boolean isRequestTooFrequent(Long userId) {
         Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
         if (lastRequest.isPresent()) {
             LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
             Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
             if (duration.toMinutes() < 15) {
                 long minutesLeft = 15 - duration.toMinutes();
-                sendTextMessage(userId, String.format("Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
-                return;
+                sendTextMessage(userId, String.format(
+                        "Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
+                return true;
             }
         }
+        return false;
+    }
 
+    private void createAndSaveSupportRequest(Long userId, String message) {
         SupportRequest supportRequest = new SupportRequest();
         supportRequest.setUserId(userId);
         supportRequest.setMessage(message);
-        supportRequest.setRequestStatus(SupportRequest.RequestStatus.OPEN);
+
         try {
             supportRequestService.saveSupportRequest(supportRequest);
             sendTextMessage(userId, "Ваш запрос в техподдержку успешно отправлен. Спасибо!");
@@ -297,13 +308,11 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
                 ? "\n✅ Ваша анкета видна."
                 : "\n❌ На данный момент вашу анкету никто не видит.";
 
-        String profileMessage = String.format(
+        return String.format(
                 "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n%s%s",
                 userInfoService.formatUserProfile(userInfo, contactInfo),
                 visibilityStatus
         );
-
-        return profileMessage;
     }
 
     private void askFullName(Long userId) {
@@ -322,5 +331,29 @@ public class NetworkingBot extends MultiSessionTelegramBot implements CommandLin
 
         String message = "Пожалуйста, укажите ваше имя.";
         sendTextMessage(userId, message);
+    }
+
+    private void handleAdminCommand(Long userId) {
+        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
+        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
+            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
+            return;
+        }
+
+        String userCommands = """
+                Команды пользователя:
+                - /start: Старт
+                - /restart: Заполнение анкеты заново
+                - /profile: Просмотр своей анкеты
+                - /help: Помощь
+                - /support: Обращение в тех-поддержку
+                """;
+
+        String adminCommands = """
+                Команды администратора:
+                - /admin: Показать все команды
+                """;
+
+        sendTextMessage(userId, userCommands + "\n" + adminCommands);
     }
 }

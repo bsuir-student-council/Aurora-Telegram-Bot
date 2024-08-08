@@ -22,6 +22,10 @@ public class UserInfoService {
         return userInfoRepository.findAll();
     }
 
+    public List<UserInfo> getVisibleUsers() {
+        return userInfoRepository.findAllByIsVisibleTrue();
+    }
+
     public Optional<UserInfo> getUserInfoByUserId(Long userId) {
         return userInfoRepository.findByUserId(userId);
     }

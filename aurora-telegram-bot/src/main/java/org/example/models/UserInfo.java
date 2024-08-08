@@ -29,4 +29,13 @@ public class UserInfo {
     private String funFact;
 
     private Boolean isVisible = false;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    public enum Role {
+        ADMIN,
+        USER
+    }
 }

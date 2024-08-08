@@ -34,8 +34,7 @@ public class ProfileMatchingTask {
 
     @Scheduled(cron = "0 0 11 * * ?") // 11:00
     public void sendMatchedProfiles() {
-        List<UserInfo> users = userInfoService.getAllUsers().stream()
-                .filter(UserInfo::getIsVisible).toList();
+        List<UserInfo> users = userInfoService.getVisibleUsers();
 
         try {
             List<TextSimilarity.SimilarityPair> pairs = processUserInfos(users.toArray(new UserInfo[0]));
