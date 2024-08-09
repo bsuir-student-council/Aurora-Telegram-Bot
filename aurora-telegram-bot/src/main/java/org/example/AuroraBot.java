@@ -50,7 +50,8 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
     public enum DialogMode {
         PROFILE,
-        SUPPORT
+        SUPPORT,
+        PROMOTE
     }
 
     @PostConstruct
@@ -102,6 +103,8 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
             case "/restart" -> handleRestartCommand(userId);
             case "/support" -> handleSupportCommand(userId);
             case "/admin" -> handleAdminCommand(userId);
+            case "/promote" -> handlePromoteCommand(userId);
+            case "/list_admins" -> handleListAdminsCommand(userId);
             default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
     }
@@ -150,6 +153,17 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         );
     }
 
+    private void handlePromoteCommand(Long userId) {
+        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
+        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
+            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
+            return;
+        }
+
+        sendTextMessage(userId, "Пожалуйста, отправьте алиас пользователя в формате @username.");
+        userModes.put(userId, DialogMode.PROMOTE);
+    }
+
     private void handleDialogMode(Long userId, String message) {
         DialogMode currentMode = userModes.getOrDefault(userId, null);
         if (currentMode == null) {
@@ -160,6 +174,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         switch (currentMode) {
             case PROFILE -> handleProfileDialog(userId, message);
             case SUPPORT -> handleSupportDialog(userId, message);
+            case PROMOTE -> handlePromoteUser(userId, message);
             default -> sendTextMessage(userId, "Неизвестный режим диалога.");
         }
     }
@@ -342,18 +357,85 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
         String userCommands = """
                 Команды пользователя:
-                - /start: Старт
-                - /restart: Заполнение анкеты заново
-                - /profile: Просмотр своей анкеты
-                - /help: Помощь
-                - /support: Обращение в тех-поддержку
+                - /start: Инициализация работы с ботом и начало взаимодействия.
+                - /restart: Перезапуск процесса заполнения анкеты.
+                - /profile: Просмотр текущей анкеты пользователем.
+                - /help: Получение справочной информации о функционале бота и доступных командах.
+                - /support: Отправка запроса в техническую поддержку.
                 """;
 
         String adminCommands = """
                 Команды администратора:
-                - /admin: Показать все команды
+                - /admin: Отображение всех доступных команд с кратким описанием.
+                - /list_admins: Вывести список всех администраторов.
+                - /promote: Сделать пользователя администратором.
                 """;
 
         sendTextMessage(userId, userCommands + "\n" + adminCommands);
+    }
+
+    private void handleListAdminsCommand(Long userId) {
+        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
+        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
+            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
+            return;
+        }
+
+        List<UserInfo> admins = userInfoService.getAllUsers().stream()
+                .filter(user -> user.getRole() == UserInfo.Role.ADMIN)
+                .toList();
+
+        if (admins.isEmpty()) {
+            sendTextMessage(userId, "Администраторы не найдены.");
+        } else {
+            StringBuilder adminList = new StringBuilder("Список администраторов:\n");
+            int counter = 1;
+            for (UserInfo admin : admins) {
+                String adminAlias = getUserAlias(admin.getUserId());
+                String adminName = admin.getName() != null ? admin.getName() : "Имя не указано";
+                adminList.append(counter++)
+                        .append(". ")
+                        .append(adminName)
+                        .append(" - ")
+                        .append(adminAlias != null ? adminAlias : admin.getUserId())
+                        .append("\n");
+            }
+            sendTextMessage(userId, adminList.toString());
+        }
+    }
+
+    private void handlePromoteUser(Long userId, String username) {
+        Long targetUserId = null;
+
+        List<UserInfo> allUsers = userInfoService.getAllUsers();
+
+        for (UserInfo user : allUsers) {
+            String userAlias = getUserAlias(user.getUserId());
+            if (userAlias != null && userAlias.equals(username)) {
+                targetUserId = user.getUserId();
+                break;
+            }
+        }
+
+        if (targetUserId == null) {
+            sendTextMessage(userId, "Пользователь не найден или не зарегистрирован в системе.");
+            return;
+        }
+
+        UserInfo userInfo = userInfoService.getUserInfoByUserId(targetUserId).orElseThrow();
+
+        if (userInfo.getRole() == UserInfo.Role.ADMIN) {
+            sendTextMessage(userId, "Этот пользователь уже является админом.");
+            return;
+        }
+
+        try {
+            userInfo.setRole(UserInfo.Role.ADMIN);
+            userInfoService.saveUserInfo(userInfo);
+            sendTextMessage(userId, "Пользователь успешно повышен до роли Админа.");
+            userModes.remove(userId);
+        } catch (Exception e) {
+            sendTextMessage(userId, "Произошла ошибка при обновлении роли пользователя.");
+        }
     }
 }
