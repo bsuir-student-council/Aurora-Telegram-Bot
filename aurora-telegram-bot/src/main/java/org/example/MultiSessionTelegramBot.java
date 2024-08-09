@@ -28,21 +28,42 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
     private String token;
     private final ConcurrentHashMap<Long, Update> userUpdates = new ConcurrentHashMap<>();
 
+    /**
+     * Initializes the bot with the specified name and token.
+     *
+     * @param name  the name of the bot
+     * @param token the authentication token of the bot
+     */
     public void initialize(String name, String token) {
         this.name = name;
         this.token = token;
     }
 
+    /**
+     * Returns the username of the bot.
+     *
+     * @return the bot username
+     */
     @Override
     public String getBotUsername() {
         return name;
     }
 
+    /**
+     * Returns the token of the bot.
+     *
+     * @return the bot token
+     */
     @Override
     public String getBotToken() {
         return token;
     }
 
+    /**
+     * Handles an incoming update from Telegram.
+     *
+     * @param update the update object
+     */
     @Override
     public final void onUpdateReceived(Update update) {
         Long userId = getUserId(update);
@@ -54,26 +75,46 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    // Обработка события обновления
+    /**
+     * Processes the received update event. Can be overridden for custom behavior.
+     *
+     * @param update the update object
+     */
     public void onUpdateEventReceived(Update update) {
         // do nothing
     }
 
-    // Получение Callback Query Button Key
+    /**
+     * Retrieves the callback query button key for a specific user.
+     *
+     * @param userId the user ID
+     * @return the callback query data or an empty string if not available
+     */
     public String getCallbackQueryButtonKey(Long userId) {
         Update update = userUpdates.get(userId);
         return update.hasCallbackQuery() ? update.getCallbackQuery().getData() : "";
     }
 
-    // Отправка текстового сообщения
+    /**
+     * Sends a text message to a user.
+     *
+     * @param userId the user ID
+     * @param text   the text message
+     */
     public void sendTextMessage(Long userId, String text) {
         SendMessage command = createApiSendMessageCommandWithChat(userId, text);
         command.setParseMode(ParseMode.HTML);
         executeTelegramApiMethod(command);
     }
 
+    /**
+     * Sends a photo message to a user.
+     *
+     * @param userId   the user ID
+     * @param photoKey the photo key or file ID
+     * @param isFileId whether the photo key is a file ID
+     */
     public void sendPhotoMessage(Long userId, String photoKey, boolean isFileId) {
-        // Отправка сообщения с фото, текстом и кнопками
         SendPhoto photoMessage = new SendPhoto();
 
         if (isFileId) {
@@ -89,7 +130,13 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         executeTelegramApiMethod(photoMessage);
     }
 
-    // Отправка текстового сообщения с кнопками
+    /**
+     * Sends a text message with inline buttons to a user.
+     *
+     * @param userId  the user ID
+     * @param text    the text message
+     * @param buttons an array of button names and callback data
+     */
     public void sendTextButtonsMessage(Long userId, String text, String... buttons) {
         SendMessage command = createApiSendMessageCommandWithChat(userId, text);
         command.setParseMode(ParseMode.HTML);
@@ -99,7 +146,13 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         executeTelegramApiMethod(command);
     }
 
-    // Универсальный метод для прикрепления кнопок
+    /**
+     * Attaches inline buttons to a message.
+     *
+     * @param message the message object
+     * @param buttons a list of button names and callback data
+     * @param <T>     the type of the message object
+     */
     private <T> void attachButtons(T message, List<String> buttons) {
         InlineKeyboardMarkup markup = new InlineKeyboardMarkup();
         List<List<InlineKeyboardButton>> keyboard = new ArrayList<>();
@@ -126,7 +179,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    // Загрузка текста сообщения из файла
+    /**
+     * Loads a message text from a file.
+     *
+     * @param name the name of the message file
+     * @return the message text
+     */
     public static String loadMessage(String name) {
         try {
             var is = ClassLoader.getSystemResourceAsStream("messages/" + name + ".txt");
@@ -137,7 +195,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    // Загрузка изображения из файла
+    /**
+     * Loads an image from a file.
+     *
+     * @param name the name of the image file
+     * @return the input stream of the image
+     */
     public static InputStream loadImage(String name) {
         try {
             return ClassLoader.getSystemResourceAsStream("images/" + name + ".jpg");
@@ -146,7 +209,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    // Получение ID пользователя
+    /**
+     * Retrieves the user ID from an update.
+     *
+     * @param update the update object
+     * @return the user ID or null if not available
+     */
     public Long getUserId(Update update) {
         if (update.hasMessage() && update.getMessage().getFrom() != null) {
             return update.getMessage().getFrom().getId();
@@ -159,6 +227,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return null;
     }
 
+    /**
+     * Retrieves the user alias from Telegram chat information.
+     *
+     * @param userId the user ID
+     * @return the user alias or null if not available
+     */
     public String getUserAlias(Long userId) {
         GetChat getChat = new GetChat();
         getChat.setChatId(userId.toString());
@@ -172,6 +246,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return null;
     }
 
+    /**
+     * Retrieves the user's profile photo URL.
+     *
+     * @param userId the user ID
+     * @return the file ID of the photo or null if not available
+     */
     public String getUserPhotoUrl(Long userId) {
         try {
             GetUserProfilePhotos getUserProfilePhotos = new GetUserProfilePhotos();
@@ -190,8 +270,12 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return null;
     }
 
-
-    // Получение текста сообщения
+    /**
+     * Retrieves the text of a message from an update.
+     *
+     * @param userId the user ID
+     * @return the message text or an empty string if not available
+     */
     public String getMessageText(Long userId) {
         Update update = userUpdates.get(userId);
         if (update.hasMessage() && update.getMessage().hasText()) {
@@ -202,6 +286,14 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return "";
     }
 
+    /**
+     * Edits an existing text message with new text and optional buttons.
+     *
+     * @param userId    the user ID
+     * @param messageId the message ID to edit
+     * @param newText   the new text message
+     * @param buttons   an array of button names and callback data
+     */
     public void editTextMessageWithButtons(Long userId, Integer messageId, String newText, String... buttons) {
         EditMessageText editMessage = new EditMessageText();
         editMessage.setChatId(userId);
@@ -214,6 +306,13 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         executeTelegramApiMethod(editMessage);
     }
 
+    /**
+     * Creates a SendMessage command with chat ID and text.
+     *
+     * @param userId the user ID
+     * @param text   the text message
+     * @return the SendMessage object
+     */
     private SendMessage createApiSendMessageCommandWithChat(Long userId, String text) {
         SendMessage message = new SendMessage();
         message.setText(text);
@@ -221,6 +320,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         return message;
     }
 
+    /**
+     * Executes a Telegram API method for sending a photo message.
+     *
+     * @param message the SendPhoto object
+     */
     private void executeTelegramApiMethod(SendPhoto message) {
         try {
             super.execute(message);
@@ -229,7 +333,13 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         }
     }
 
-    // Выполнение метода Telegram API для текстовых сообщений
+    /**
+     * Executes a Telegram API method for sending text-based API methods.
+     *
+     * @param method   the BotApiMethod object
+     * @param <T>      the type of the method result
+     * @param <Method> the type of the method
+     */
     private <T extends Serializable, Method extends BotApiMethod<T>> void executeTelegramApiMethod(Method method) {
         try {
             super.sendApiMethod(method);
