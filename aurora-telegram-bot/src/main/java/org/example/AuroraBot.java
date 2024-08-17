@@ -1,6 +1,10 @@
 package org.example;
 
+import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.commands.*;
+import org.example.interfaces.BotCommandHandler;
+import org.example.enums.DialogMode;
 import org.example.models.SupportRequest;
 import org.example.models.UserInfo;
 import org.example.services.SupportRequestService;
@@ -19,7 +23,9 @@ import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -28,7 +34,9 @@ import jakarta.annotation.PostConstruct;
 @Component
 @NoArgsConstructor
 public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRunner {
+    private final Map<String, BotCommandHandler> commandHandlers = new HashMap<>();
 
+    @Getter
     private final ConcurrentHashMap<Long, DialogMode> userModes = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, UserInfo> userInfos = new ConcurrentHashMap<>();
     private final ConcurrentHashMap<Long, Integer> userQuestionCounts = new ConcurrentHashMap<>();
@@ -48,29 +56,36 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     @Value("${telegram.bot.token}")
     private String botToken;
 
-    public enum DialogMode {
-        PROFILE,
-        SUPPORT,
-        PROMOTE
-    }
-
     @PostConstruct
     private void initializeBot() {
         initialize(botName, botToken);
     }
 
+
     @Override
     public void run(String... args) throws Exception {
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
         telegramBotsApi.registerBot(this);
+        registerCommands();
         setMyCommands();
+    }
+
+    private void registerCommands() {
+        commandHandlers.put("/start", new StartCommand(this));
+        commandHandlers.put("/profile", new ProfileCommand(this, userInfoService));
+        commandHandlers.put("/help", new HelpCommand(this));
+        commandHandlers.put("/restart", new RestartCommand(this, userInfoService, userInfos));
+        commandHandlers.put("/support", new SupportCommand(this));
+        commandHandlers.put("/admin", new AdminCommand(this, userInfoService));
+        commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
+        commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
     }
 
     private void setMyCommands() {
         List<BotCommand> commands = List.of(
                 new BotCommand("/profile", "Моя анкета"),
                 new BotCommand("/help", "Помощь"),
-                new BotCommand("/restart", "Заново")
+                new BotCommand("/restart", "Заполнить анкету заново")
         );
 
         try {
@@ -96,16 +111,11 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     }
 
     private void handleCommand(Long userId, String command) {
-        switch (command) {
-            case "/start" -> handleStartCommand(userId);
-            case "/profile" -> handleProfileCommand(userId);
-            case "/help" -> handleHelpCommand(userId);
-            case "/restart" -> handleRestartCommand(userId);
-            case "/support" -> handleSupportCommand(userId);
-            case "/admin" -> handleAdminCommand(userId);
-            case "/promote" -> handlePromoteCommand(userId);
-            case "/list_admins" -> handleListAdminsCommand(userId);
-            default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
+        BotCommandHandler handler = commandHandlers.get(command);
+        if (handler != null) {
+            handler.execute(userId);
+        } else {
+            sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
     }
 
@@ -117,51 +127,6 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
             case "toggle_visibility" -> handleToggleVisibility(userId, messageId);
             default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
-    }
-
-    private void handleSupportCommand(Long userId) {
-        if (isRequestTooFrequent(userId)) {
-            return;
-        }
-
-        userModes.put(userId, DialogMode.SUPPORT);
-        sendTextMessage(userId,
-                "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. " +
-                        "Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
-    }
-
-    private void handleHelpCommand(Long userId) {
-        String helpMessage = loadMessage("help");
-        sendTextMessage(userId, helpMessage);
-    }
-
-    private void handleRestartCommand(Long userId) {
-        userInfos.remove(userId);
-        userInfoService.deleteUserInfo(userId);
-        askFullName(userId);
-    }
-
-    private void handleStartCommand(Long userId) {
-        //sendPhotoMessage(userId, "start", false);
-        sendTextButtonsMessage(userId, loadMessage("start"), "Поехали🚀", "start");
-    }
-
-    private void handleProfileCommand(Long userId) {
-        userInfoService.getUserInfoByUserId(userId).ifPresentOrElse(
-                userInfo -> sendUserProfile(userId, userInfo),
-                () -> sendTextMessage(userId, "Анкета не найдена. Пожалуйста, заполните анкету командой /start.")
-        );
-    }
-
-    private void handlePromoteCommand(Long userId) {
-        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
-        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
-            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
-            return;
-        }
-
-        sendTextMessage(userId, "Пожалуйста, отправьте алиас пользователя в формате @username.");
-        userModes.put(userId, DialogMode.PROMOTE);
     }
 
     private void handleDialogMode(Long userId, String message) {
@@ -196,7 +161,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         return message.length() > 2000;
     }
 
-    private boolean isRequestTooFrequent(Long userId) {
+    public boolean isRequestTooFrequent(Long userId) {
         Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
         if (lastRequest.isPresent()) {
             LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
@@ -272,7 +237,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         }
     }
 
-    private void sendUserProfile(Long userId, UserInfo userInfo) {
+    public void sendUserProfile(Long userId, UserInfo userInfo) {
         String photoUrl = getUserPhotoUrl(userId);
         String profileMessage = formatUserProfileMessage(userId, userInfo);
 
@@ -330,7 +295,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         );
     }
 
-    private void askFullName(Long userId) {
+    public void askFullName(Long userId) {
         userModes.put(userId, DialogMode.PROFILE);
         userQuestionCounts.put(userId, 1);
 
@@ -346,62 +311,6 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
         String message = "Пожалуйста, укажите ваше имя.";
         sendTextMessage(userId, message);
-    }
-
-    private void handleAdminCommand(Long userId) {
-        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
-        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
-            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
-            return;
-        }
-
-        String userCommands = """
-                Команды пользователя:
-                - /start: Инициализация работы с ботом и начало взаимодействия.
-                - /restart: Перезапуск процесса заполнения анкеты.
-                - /profile: Просмотр текущей анкеты пользователем.
-                - /help: Получение справочной информации о функционале бота и доступных командах.
-                - /support: Отправка запроса в техническую поддержку.
-                """;
-
-        String adminCommands = """
-                Команды администратора:
-                - /admin: Отображение всех доступных команд с кратким описанием.
-                - /list_admins: Вывести список всех администраторов.
-                - /promote: Сделать пользователя администратором.
-                """;
-
-        sendTextMessage(userId, userCommands + "\n" + adminCommands);
-    }
-
-    private void handleListAdminsCommand(Long userId) {
-        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
-        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
-            sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
-            return;
-        }
-
-        List<UserInfo> admins = userInfoService.getAllUsers().stream()
-                .filter(user -> user.getRole() == UserInfo.Role.ADMIN)
-                .toList();
-
-        if (admins.isEmpty()) {
-            sendTextMessage(userId, "Администраторы не найдены.");
-        } else {
-            StringBuilder adminList = new StringBuilder("Список администраторов:\n");
-            int counter = 1;
-            for (UserInfo admin : admins) {
-                String adminAlias = getUserAlias(admin.getUserId());
-                String adminName = admin.getName() != null ? admin.getName() : "Имя не указано";
-                adminList.append(counter++)
-                        .append(". ")
-                        .append(adminName)
-                        .append(" - ")
-                        .append(adminAlias != null ? adminAlias : admin.getUserId())
-                        .append("\n");
-            }
-            sendTextMessage(userId, adminList.toString());
-        }
     }
 
     private void handlePromoteUser(Long userId, String username) {
