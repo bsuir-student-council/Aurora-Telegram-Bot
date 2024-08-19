@@ -7,9 +7,11 @@
 - [Установка](#установка)
 - [Конфигурация](#конфигурация)
 - [Запуск](#запуск)
+- [Альтернативный запуск с Docker](#альтернативный-запуск-с-docker)
 - [Команды Telegram-Бота](#команды-telegram-бота)
 - [Автоматические скрипты](#автоматические-скрипты)
 - [Структура проекта](#структура-проекта)
+- [CI](#ci)
 - [Лицензия](#лицензия)
 - [Контакты](#контакты)
 
@@ -39,7 +41,7 @@ telegram.bot.token=YOUR_BOT_TOKEN
 special.user.id=YOUR_SPECIAL_USER_ID
 ```
 
-Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN` и `YOUR_SPECIAL_USER_ID` на соответствующие значения.
+Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN` на соответствующие значения. `YOUR_SPECIAL_USER_ID` должен быть ID человека, который будет добавлен в выборку при нечётном количестве анкет, чтобы количество всегда было чётным и у всех была пара.
 
 ## Запуск
 
@@ -62,6 +64,22 @@ special.user.id=YOUR_SPECIAL_USER_ID
 
     ```bash
     mvn spring-boot:run
+    ```
+
+## Альтернативный запуск с Docker
+
+Для удобства развертывания проект также включает Dockerfile. Убедитесь, что вы настроили переменные среды в `application.properties` перед созданием Docker-образа.
+
+1. Постройте Docker-образ:
+
+    ```bash
+    docker build -t aurora-telegram-bot .
+    ```
+
+2. Запустите контейнер:
+
+    ```bash
+    docker run -d aurora-telegram-bot
     ```
 
 ## Команды Telegram-Бота
@@ -120,6 +138,19 @@ aurora-telegram-bot/
 │   │   ├── java/
 │   │   │   └── org/
 │   │   │       └── example/
+│   │   │           ├── commands/
+│   │   │           │   ├── AdminCommand.java
+│   │   │           │   ├── AdminsListCommand.java
+│   │   │           │   ├── HelpCommand.java
+│   │   │           │   ├── ProfileCommand.java
+│   │   │           │   ├── PromoteCommand.java
+│   │   │           │   ├── RestartCommand.java
+│   │   │           │   ├── StartCommand.java
+│   │   │           │   └── SupportCommand.java
+│   │   │           ├── enums/
+│   │   │           │   └── DialogMode.java
+│   │   │           ├── interfaces/
+│   │   │           │   └── BotCommandHandler.java
 │   │   │           ├── models/
 │   │   │           │   ├── SupportRequest.java
 │   │   │           │   └── UserInfo.java
@@ -143,8 +174,8 @@ aurora-telegram-bot/
 │   │   │           ├── services/
 │   │   │           │   ├── SupportRequestService.java
 │   │   │           │   └── UserInfoService.java
-│   │   │           ├── AuroraBot.java
 │   │   │           ├── AuroraBotApplication.java
+│   │   │           ├── AuroraBot.java
 │   │   │           └── MultiSessionTelegramBot.java
 │   │   ├── resources/
 │   │   │   ├── images/
@@ -157,9 +188,13 @@ aurora-telegram-bot/
 ├── pom.xml
 ```
 
+## CI
+
+Проект включает в себя настройку CI, которая находится в файле `Aurora-Telegram-Bot/.github/workflows/java-ci.yml`. Этот файл конфигурирует автоматические проверки и сборку проекта с использованием GitHub Actions.
+
 ## Лицензия
 
-Этот проект лицензирован под лицензией Apache-2.0. Подробности смотрите в файле `LICENSE`.
+Этот проект распространяется под лицензией Apache License 2.0. Подробности можно найти в файле `LICENSE`.
 
 ## Контакты
 
