@@ -5,7 +5,12 @@ import org.example.interfaces.DialogHandler;
 import org.example.models.UserInfo;
 import org.example.services.UserInfoService;
 
+import java.util.logging.Logger;
+
 public class ProfileDialogHandler implements DialogHandler {
+    private static final Logger logger = Logger.getLogger(ProfileDialogHandler.class.getName());
+
+    private static final int MAX_INPUT_LENGTH = 255;
 
     private final AuroraBot bot;
     private final UserInfoService userInfoService;
@@ -17,7 +22,7 @@ public class ProfileDialogHandler implements DialogHandler {
 
     @Override
     public void handle(Long userId, String message) {
-        if (message.length() > 255) {
+        if (message.length() > MAX_INPUT_LENGTH) {
             bot.sendTextMessage(userId, "Ваш ввод слишком длинный. Пожалуйста, сократите его до 255 символов.");
             return;
         }
@@ -58,14 +63,24 @@ public class ProfileDialogHandler implements DialogHandler {
             userInfoService.saveUserInfo(userInfo);
             sendUserProfile(userId, userInfo);
             bot.getUserModes().remove(userId);
+            logger.info("Profile saved for userId: " + userId);
         } catch (Exception e) {
             bot.sendTextMessage(userId, "Произошла ошибка при сохранении профиля. Пожалуйста, попробуйте снова.");
+            logger.severe("Error saving profile for userId: " + userId + " - " + e.getMessage());
         }
     }
 
-    public void sendUserProfile(Long userId, UserInfo userInfo) {
+    private void sendUserProfile(Long userId, UserInfo userInfo) {
         String photoUrl = bot.getUserPhotoUrl(userId);
+        String profileMessage = buildProfileMessage(userId, userInfo);
 
+        if (photoUrl != null) {
+            bot.sendPhotoMessage(userId, photoUrl, true);
+        }
+        bot.sendTextButtonsMessage(userId, profileMessage, "Редактировать", "accepted", "Сменить статус видимости", "toggle_visibility");
+    }
+
+    private String buildProfileMessage(Long userId, UserInfo userInfo) {
         String userAlias = bot.getUserAlias(userId);
         String contactInfo = (userAlias != null && !userAlias.equals("@null"))
                 ? userAlias
@@ -75,15 +90,10 @@ public class ProfileDialogHandler implements DialogHandler {
                 ? "\n✅ Ваша анкета видна."
                 : "\n❌ На данный момент вашу анкету никто не видит.";
 
-        String profileMessage = String.format(
+        return String.format(
                 "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n%s%s",
                 userInfoService.formatUserProfile(userInfo, contactInfo),
                 visibilityStatus
         );
-
-        if (photoUrl != null) {
-            bot.sendPhotoMessage(userId, photoUrl, true);
-        }
-        bot.sendTextButtonsMessage(userId, profileMessage, "Редактировать", "accepted", "Сменить статус видимости", "toggle_visibility");
     }
 }

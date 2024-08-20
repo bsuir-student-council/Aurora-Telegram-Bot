@@ -5,9 +5,23 @@ import org.example.interfaces.BotCommandHandler;
 import org.example.models.UserInfo;
 import org.example.services.UserInfoService;
 
-import java.util.Optional;
-
 public class AdminCommand implements BotCommandHandler {
+
+    private static final String NO_PERMISSION_MESSAGE = "У вас нет прав для выполнения этой команды.";
+    private static final String USER_COMMANDS = """
+            Команды пользователя:
+            - /start: Инициализация работы с ботом и начало взаимодействия.
+            - /profile: Просмотр текущей анкеты пользователем.
+            - /help: Получение справочной информации о функционале бота и доступных командах.
+            - /support: Отправка запроса в техническую поддержку.
+            """;
+    private static final String ADMIN_COMMANDS = """
+            Команды администратора:
+            - /admin: Отображение всех доступных команд с кратким описанием.
+            - /list_admins: Вывести список всех администраторов.
+            - /promote: Сделать пользователя администратором.
+            """;
+
     private final AuroraBot bot;
     private final UserInfoService userInfoService;
 
@@ -18,27 +32,17 @@ public class AdminCommand implements BotCommandHandler {
 
     @Override
     public void handle(Long userId) {
-        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
-        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
-            bot.sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
-            return;
+        userInfoService.getUserInfoByUserId(userId).ifPresentOrElse(
+                userInfo -> checkAdminAndSendCommands(userId, userInfo),
+                () -> bot.sendTextMessage(userId, NO_PERMISSION_MESSAGE)
+        );
+    }
+
+    private void checkAdminAndSendCommands(Long userId, UserInfo userInfo) {
+        if (userInfo.getRole() == UserInfo.Role.ADMIN) {
+            bot.sendTextMessage(userId, USER_COMMANDS + "\n" + ADMIN_COMMANDS);
+        } else {
+            bot.sendTextMessage(userId, NO_PERMISSION_MESSAGE);
         }
-
-        String userCommands = """
-                Команды пользователя:
-                - /start: Инициализация работы с ботом и начало взаимодействия.
-                - /profile: Просмотр текущей анкеты пользователем.
-                - /help: Получение справочной информации о функционале бота и доступных командах.
-                - /support: Отправка запроса в техническую поддержку.
-                """;
-
-        String adminCommands = """
-                Команды администратора:
-                - /admin: Отображение всех доступных команд с кратким описанием.
-                - /list_admins: Вывести список всех администраторов.
-                - /promote: Сделать пользователя администратором.
-                """;
-
-        bot.sendTextMessage(userId, userCommands + "\n" + adminCommands);
     }
 }

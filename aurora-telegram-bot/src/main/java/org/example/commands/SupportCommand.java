@@ -9,8 +9,13 @@ import org.example.services.SupportRequestService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 public class SupportCommand implements BotCommandHandler {
+    private static final Logger logger = Logger.getLogger(SupportCommand.class.getName());
+
+    private static final long MIN_INTERVAL_MINUTES = 15;
+
     private final AuroraBot bot;
     private final SupportRequestService supportRequestService;
 
@@ -26,23 +31,23 @@ public class SupportCommand implements BotCommandHandler {
         }
 
         bot.getUserModes().put(userId, DialogMode.SUPPORT);
-        bot.sendTextMessage(userId,
-                "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. " +
-                        "Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
+        bot.sendTextMessage(userId, "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. " +
+                "Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
+        logger.info("Support mode activated for userId: " + userId);
     }
 
     private boolean isRequestTooFrequent(Long userId) {
         Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
-        if (lastRequest.isPresent()) {
-            LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
+        return lastRequest.map(request -> {
+            LocalDateTime lastRequestTime = request.getCreatedAt();
             Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
-            if (duration.toMinutes() < 15) {
-                long minutesLeft = 15 - duration.toMinutes();
-                bot.sendTextMessage(userId, String.format(
-                        "Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
+            long minutesLeft = MIN_INTERVAL_MINUTES - duration.toMinutes();
+            if (minutesLeft > 0) {
+                bot.sendTextMessage(userId, String.format("Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
+                logger.warning("Support request too frequent for userId: " + userId);
                 return true;
             }
-        }
-        return false;
+            return false;
+        }).orElse(false);
     }
 }

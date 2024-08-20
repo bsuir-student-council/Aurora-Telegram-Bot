@@ -6,9 +6,10 @@ import org.example.enums.DialogMode;
 import org.example.models.UserInfo;
 import org.example.services.UserInfoService;
 
-import java.util.Optional;
 
 public class PromoteCommand implements BotCommandHandler {
+
+    private static final String NO_PERMISSION_MESSAGE = "У вас нет прав для выполнения этой команды.";
     private final AuroraBot bot;
     private final UserInfoService userInfoService;
 
@@ -19,13 +20,18 @@ public class PromoteCommand implements BotCommandHandler {
 
     @Override
     public void handle(Long userId) {
-        Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
-        if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
-            bot.sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
-            return;
-        }
+        userInfoService.getUserInfoByUserId(userId).ifPresentOrElse(
+                userInfo -> checkAdminAndRequestUsername(userId, userInfo),
+                () -> bot.sendTextMessage(userId, NO_PERMISSION_MESSAGE)
+        );
+    }
 
-        bot.sendTextMessage(userId, "Пожалуйста, отправьте алиас пользователя в формате @username.");
-        bot.getUserModes().put(userId, DialogMode.PROMOTE);
+    private void checkAdminAndRequestUsername(Long userId, UserInfo userInfo) {
+        if (userInfo.getRole() == UserInfo.Role.ADMIN) {
+            bot.sendTextMessage(userId, "Пожалуйста, отправьте алиас пользователя в формате @username.");
+            bot.getUserModes().put(userId, DialogMode.PROMOTE);
+        } else {
+            bot.sendTextMessage(userId, NO_PERMISSION_MESSAGE);
+        }
     }
 }

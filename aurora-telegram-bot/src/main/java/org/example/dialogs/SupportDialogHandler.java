@@ -8,8 +8,13 @@ import org.example.services.SupportRequestService;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Optional;
+import java.util.logging.Logger;
 
 public class SupportDialogHandler implements DialogHandler {
+    private static final Logger logger = Logger.getLogger(SupportDialogHandler.class.getName());
+    private static final int MAX_MESSAGE_LENGTH = 2000;
+    private static final int MIN_INTERVAL_MINUTES = 15;
+
     private final AuroraBot bot;
     private final SupportRequestService supportRequestService;
 
@@ -33,18 +38,19 @@ public class SupportDialogHandler implements DialogHandler {
     }
 
     private boolean isMessageTooLong(String message) {
-        return message.length() > 2000;
+        return message.length() > MAX_MESSAGE_LENGTH;
     }
 
-    public boolean isRequestTooFrequent(Long userId) {
+    private boolean isRequestTooFrequent(Long userId) {
         Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
         if (lastRequest.isPresent()) {
             LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
             Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
-            if (duration.toMinutes() < 15) {
-                long minutesLeft = 15 - duration.toMinutes();
+            long minutesLeft = MIN_INTERVAL_MINUTES - duration.toMinutes();
+            if (minutesLeft > 0) {
                 bot.sendTextMessage(userId, String.format(
                         "Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
+                logger.warning("Support request too frequent for userId: " + userId);
                 return true;
             }
         }
@@ -60,8 +66,10 @@ public class SupportDialogHandler implements DialogHandler {
             supportRequestService.saveSupportRequest(supportRequest);
             bot.sendTextMessage(userId, "Ваш запрос в техподдержку успешно отправлен. Спасибо!");
             bot.getUserModes().remove(userId);
+            logger.info("Support request saved for userId: " + userId);
         } catch (Exception e) {
             bot.sendTextMessage(userId, "Произошла ошибка при сохранении запроса. Пожалуйста, попробуйте снова.");
+            logger.severe("Error saving support request for userId: " + userId + " - " + e.getMessage());
         }
     }
 }

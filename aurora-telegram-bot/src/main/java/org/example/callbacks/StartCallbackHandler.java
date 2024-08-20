@@ -4,7 +4,10 @@ import org.example.AuroraBot;
 import org.example.MultiSessionTelegramBot;
 import org.example.interfaces.CallbackQueryHandler;
 
+import java.util.logging.Logger;
+
 public class StartCallbackHandler implements CallbackQueryHandler {
+    private static final Logger logger = Logger.getLogger(StartCallbackHandler.class.getName());
     private final AuroraBot bot;
 
     public StartCallbackHandler(AuroraBot bot) {
@@ -13,8 +16,17 @@ public class StartCallbackHandler implements CallbackQueryHandler {
 
     @Override
     public void handle(Long userId, Integer messageId) {
-        String updatedMessage = MultiSessionTelegramBot.loadMessage("start") + "\n\n➪ Поехали🚀";
-        bot.editTextMessageWithButtons(userId, messageId, updatedMessage);
-        bot.sendTextButtonsMessage(userId, MultiSessionTelegramBot.loadMessage("info"), "Принято 😊", "accepted");
+        try {
+            String startMessage = MultiSessionTelegramBot.loadMessage("start");
+            String updatedMessage = startMessage + "\n\n➪ Поехали🚀";
+            bot.editTextMessageWithButtons(userId, messageId, updatedMessage);
+
+            String infoMessage = MultiSessionTelegramBot.loadMessage("info");
+            bot.sendTextButtonsMessage(userId, infoMessage, "Принято 😊", "accepted");
+
+            logger.info("Handled start callback for userId: " + userId);
+        } catch (Exception e) {
+            logger.severe("Error handling start callback for userId: " + userId + " - " + e.getMessage());
+        }
     }
 }

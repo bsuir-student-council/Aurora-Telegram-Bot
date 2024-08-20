@@ -5,9 +5,12 @@ import org.example.interfaces.DialogHandler;
 import org.example.models.UserInfo;
 import org.example.services.UserInfoService;
 
-import java.util.List;
+import java.util.logging.Logger;
 
 public class PromoteUserDialogHandler implements DialogHandler {
+    private static final Logger logger = Logger.getLogger(PromoteUserDialogHandler.class.getName());
+
+    private static final String USER_NOT_FOUND_MESSAGE = "Пользователь не найден или не зарегистрирован в системе.";
     private final AuroraBot bot;
     private final UserInfoService userInfoService;
 
@@ -18,37 +21,43 @@ public class PromoteUserDialogHandler implements DialogHandler {
 
     @Override
     public void handle(Long userId, String username) {
-        Long targetUserId = null;
-
-        List<UserInfo> allUsers = userInfoService.getAllUsers();
-
-        for (UserInfo user : allUsers) {
-            String userAlias = bot.getUserAlias(user.getUserId());
-            if (userAlias != null && userAlias.equals(username)) {
-                targetUserId = user.getUserId();
-                break;
-            }
-        }
-
-        if (targetUserId == null) {
-            bot.sendTextMessage(userId, "Пользователь не найден или не зарегистрирован в системе.");
-            return;
-        }
-
-        UserInfo userInfo = userInfoService.getUserInfoByUserId(targetUserId).orElseThrow();
-
-        if (userInfo.getRole() == UserInfo.Role.ADMIN) {
-            bot.sendTextMessage(userId, "Этот пользователь уже является админом.");
-            return;
-        }
-
         try {
-            userInfo.setRole(UserInfo.Role.ADMIN);
-            userInfoService.saveUserInfo(userInfo);
-            bot.sendTextMessage(userId, "Пользователь успешно повышен до роли Админа.");
-            bot.getUserModes().remove(userId);
+            Long targetUserId = findUserIdByUsername(username);
+
+            if (targetUserId == null) {
+                bot.sendTextMessage(userId, USER_NOT_FOUND_MESSAGE);
+                return;
+            }
+
+            UserInfo userInfo = userInfoService.getUserInfoByUserId(targetUserId)
+                    .orElseThrow(() -> new IllegalStateException(USER_NOT_FOUND_MESSAGE));
+
+            if (userInfo.getRole() == UserInfo.Role.ADMIN) {
+                bot.sendTextMessage(userId, "Этот пользователь уже является админом.");
+                return;
+            }
+
+            promoteUserToAdmin(userInfo, userId);
+
         } catch (Exception e) {
             bot.sendTextMessage(userId, "Произошла ошибка при обновлении роли пользователя.");
+            logger.severe("Error promoting user: " + e.getMessage());
         }
+    }
+
+    private Long findUserIdByUsername(String username) {
+        return userInfoService.getAllUsers().stream()
+                .map(UserInfo::getUserId)
+                .filter(userId -> username.equals(bot.getUserAlias(userId)))
+                .findFirst()
+                .orElse(null);
+    }
+
+    private void promoteUserToAdmin(UserInfo userInfo, Long userId) {
+        userInfo.setRole(UserInfo.Role.ADMIN);
+        userInfoService.saveUserInfo(userInfo);
+        bot.sendTextMessage(userId, "Пользователь успешно повышен до Админа.");
+        bot.getUserModes().remove(userId);
+        logger.info("User promoted to admin: " + userInfo.getUserId());
     }
 }

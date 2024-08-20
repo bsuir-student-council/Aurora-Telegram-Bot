@@ -1,7 +1,6 @@
 package org.example;
 
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import org.example.callbacks.AcceptedCallbackHandler;
 import org.example.callbacks.StartCallbackHandler;
 import org.example.callbacks.ToggleVisibilityCallbackHandler;
@@ -28,18 +27,19 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.logging.Logger;
 
 import jakarta.annotation.PostConstruct;
 
 @Component
-@NoArgsConstructor
 public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRunner {
-    private final Map<String, BotCommandHandler> commandHandlers = new HashMap<>();
-    private final Map<String, CallbackQueryHandler> callbackHandlers = new HashMap<>();
+    private static final Logger logger = Logger.getLogger(AuroraBot.class.getName());
+
+    private final Map<String, BotCommandHandler> commandHandlers = new ConcurrentHashMap<>();
+    private final Map<String, CallbackQueryHandler> callbackHandlers = new ConcurrentHashMap<>();
 
     @Getter
     private final ConcurrentHashMap<Long, DialogMode> userModes = new ConcurrentHashMap<>();
@@ -50,14 +50,8 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     @Getter
     private final ConcurrentHashMap<Long, Integer> userQuestionCounts = new ConcurrentHashMap<>();
 
-    private UserInfoService userInfoService;
-    private SupportRequestService supportRequestService;
-
-    @Autowired
-    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService) {
-        this.userInfoService = userInfoService;
-        this.supportRequestService = supportRequestService;
-    }
+    private final UserInfoService userInfoService;
+    private final SupportRequestService supportRequestService;
 
     @Value("${telegram.bot.name}")
     private String botName;
@@ -65,18 +59,28 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     @Value("${telegram.bot.token}")
     private String botToken;
 
+    @Autowired
+    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService) {
+        this.userInfoService = userInfoService;
+        this.supportRequestService = supportRequestService;
+    }
+
     @PostConstruct
     private void initializeBot() {
         initialize(botName, botToken);
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
-        telegramBotsApi.registerBot(this);
-        registerCommands();
-        registerCallbackHandlers();
-        setMyCommands();
+    public void run(String... args) {
+        try {
+            TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
+            telegramBotsApi.registerBot(this);
+            registerCommands();
+            registerCallbackHandlers();
+            setMyCommands();
+        } catch (TelegramApiException e) {
+            logger.severe("Error initializing bot: " + e.getMessage());
+        }
     }
 
     private void registerCommands() {
@@ -105,7 +109,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         try {
             execute(new SetMyCommands(commands, new BotCommandScopeDefault(), null));
         } catch (TelegramApiException e) {
-            e.printStackTrace();
+            logger.severe("Failed to set bot commands: " + e.getMessage());
         }
     }
 
