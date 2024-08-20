@@ -2,9 +2,13 @@ package org.example;
 
 import lombok.Getter;
 import lombok.NoArgsConstructor;
+import org.example.callbacks.AcceptedCallbackHandler;
+import org.example.callbacks.StartCallbackHandler;
+import org.example.callbacks.ToggleVisibilityCallbackHandler;
 import org.example.commands.*;
 import org.example.interfaces.BotCommandHandler;
 import org.example.enums.DialogMode;
+import org.example.interfaces.CallbackQueryHandler;
 import org.example.models.SupportRequest;
 import org.example.models.UserInfo;
 import org.example.services.SupportRequestService;
@@ -35,6 +39,7 @@ import jakarta.annotation.PostConstruct;
 @NoArgsConstructor
 public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRunner {
     private final Map<String, BotCommandHandler> commandHandlers = new HashMap<>();
+    private final Map<String, CallbackQueryHandler> callbackHandlers = new HashMap<>();
 
     @Getter
     private final ConcurrentHashMap<Long, DialogMode> userModes = new ConcurrentHashMap<>();
@@ -61,12 +66,12 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         initialize(botName, botToken);
     }
 
-
     @Override
     public void run(String... args) throws Exception {
         TelegramBotsApi telegramBotsApi = new TelegramBotsApi(DefaultBotSession.class);
         telegramBotsApi.registerBot(this);
         registerCommands();
+        registerCallbackHandlers();
         setMyCommands();
     }
 
@@ -79,6 +84,12 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/admin", new AdminCommand(this, userInfoService));
         commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
+    }
+
+    private void registerCallbackHandlers() {
+        callbackHandlers.put("start", new StartCallbackHandler(this));
+        callbackHandlers.put("accepted", new AcceptedCallbackHandler(this));
+        callbackHandlers.put("toggle_visibility", new ToggleVisibilityCallbackHandler(this, userInfoService));
     }
 
     private void setMyCommands() {
@@ -121,11 +132,11 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
     private void handleCallbackQuery(Long userId, String callbackData, Update update) {
         Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
-        switch (callbackData) {
-            case "start" -> handleEditStartMessage(userId, messageId);
-            case "accepted" -> handleEditInfoMessage(userId, messageId);
-            case "toggle_visibility" -> handleToggleVisibility(userId, messageId);
-            default -> sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
+        CallbackQueryHandler handler = callbackHandlers.get(callbackData);
+        if (handler != null) {
+            handler.handle(userId, messageId);
+        } else {
+            sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
     }
 
@@ -247,38 +258,8 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         sendTextButtonsMessage(userId, profileMessage, "Редактировать", "accepted", "Сменить статус видимости", "toggle_visibility");
     }
 
-    private void handleEditStartMessage(Long userId, Integer messageId) {
-        String updatedMessage = loadMessage("start") + "\n\n➪ Поехали🚀";
-        editTextMessageWithButtons(userId, messageId, updatedMessage);
-        sendTextButtonsMessage(userId, loadMessage("info"), "Принято 😊", "accepted");
-    }
 
-    private void handleEditInfoMessage(Long userId, Integer messageId) {
-        String updatedMessage = loadMessage("info") + "\n\n➪ Принято 🫡";
-        editTextMessageWithButtons(userId, messageId, updatedMessage);
-        askFullName(userId);
-    }
-
-    private void handleToggleVisibility(Long userId, Integer messageId) {
-        userInfoService.toggleVisibility(userId);
-        handleEditProfileCommand(userId, messageId);
-    }
-
-    private void handleEditProfileCommand(Long userId, Integer messageId) {
-        UserInfo userInfo = userInfoService.getUserInfoByUserId(userId)
-                .orElseThrow(() -> new IllegalArgumentException("User not found"));
-
-        String updatedMessage = formatUserProfileMessage(userId, userInfo);
-        editTextMessageWithButtons(
-                userId,
-                messageId,
-                updatedMessage,
-                "Редактировать", "accepted",
-                "Сменить статус видимости", "toggle_visibility"
-        );
-    }
-
-    private String formatUserProfileMessage(Long userId, UserInfo userInfo) {
+    public String formatUserProfileMessage(Long userId, UserInfo userInfo) {
         String userAlias = getUserAlias(userId);
         String contactInfo = (userAlias != null && !userAlias.equals("@null"))
                 ? userAlias
