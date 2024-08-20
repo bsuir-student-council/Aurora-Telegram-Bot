@@ -18,7 +18,7 @@ public class PromoteCommand implements BotCommandHandler {
     }
 
     @Override
-    public void execute(Long userId) {
+    public void handle(Long userId) {
         Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
         if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
             bot.sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");

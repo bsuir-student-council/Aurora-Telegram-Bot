@@ -1,5 +1,5 @@
 package org.example.interfaces;
 
 public interface BotCommandHandler {
-    void execute(Long userId);
+    void handle(Long userId);
 }

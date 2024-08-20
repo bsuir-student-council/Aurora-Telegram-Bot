@@ -20,13 +20,30 @@ public class ToggleVisibilityCallbackHandler implements CallbackQueryHandler {
         UserInfo userInfo = userInfoService.getUserInfoByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
-        String updatedMessage = bot.formatUserProfileMessage(userId, userInfo);
+        String updatedMessage = formatUserProfileMessage(userId, userInfo);
         bot.editTextMessageWithButtons(
                 userId,
                 messageId,
                 updatedMessage,
                 "Редактировать", "accepted",
                 "Сменить статус видимости", "toggle_visibility"
+        );
+    }
+
+    public String formatUserProfileMessage(Long userId, UserInfo userInfo) {
+        String userAlias = bot.getUserAlias(userId);
+        String contactInfo = (userAlias != null && !userAlias.equals("@null"))
+                ? userAlias
+                : String.format("<a href=\"tg://user?id=%d\">Профиль пользователя</a>", userId);
+
+        String visibilityStatus = userInfo.getIsVisible()
+                ? "\n✅ Ваша анкета видна."
+                : "\n❌ На данный момент вашу анкету никто не видит.";
+
+        return String.format(
+                "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n%s%s",
+                userInfoService.formatUserProfile(userInfo, contactInfo),
+                visibilityStatus
         );
     }
 }

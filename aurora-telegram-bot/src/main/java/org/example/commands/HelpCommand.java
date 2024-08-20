@@ -12,7 +12,7 @@ public class HelpCommand implements BotCommandHandler {
     }
 
     @Override
-    public void execute(Long userId) {
+    public void handle(Long userId) {
         String helpMessage = MultiSessionTelegramBot.loadMessage("help");
         bot.sendTextMessage(userId, helpMessage);
     }

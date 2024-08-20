@@ -17,7 +17,7 @@ public class AdminCommand implements BotCommandHandler {
     }
 
     @Override
-    public void execute(Long userId) {
+    public void handle(Long userId) {
         Optional<UserInfo> userInfoOptional = userInfoService.getUserInfoByUserId(userId);
         if (userInfoOptional.isEmpty() || userInfoOptional.get().getRole() != UserInfo.Role.ADMIN) {
             bot.sendTextMessage(userId, "У вас нет прав для выполнения этой команды.");
@@ -27,7 +27,6 @@ public class AdminCommand implements BotCommandHandler {
         String userCommands = """
                 Команды пользователя:
                 - /start: Инициализация работы с ботом и начало взаимодействия.
-                - /restart: Перезапуск процесса заполнения анкеты.
                 - /profile: Просмотр текущей анкеты пользователем.
                 - /help: Получение справочной информации о функционале бота и доступных командах.
                 - /support: Отправка запроса в техническую поддержку.

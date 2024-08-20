@@ -3,17 +3,25 @@ package org.example.commands;
 import org.example.AuroraBot;
 import org.example.interfaces.BotCommandHandler;
 import org.example.enums.DialogMode;
+import org.example.models.SupportRequest;
+import org.example.services.SupportRequestService;
+
+import java.time.Duration;
+import java.time.LocalDateTime;
+import java.util.Optional;
 
 public class SupportCommand implements BotCommandHandler {
     private final AuroraBot bot;
+    private final SupportRequestService supportRequestService;
 
-    public SupportCommand(AuroraBot bot) {
+    public SupportCommand(AuroraBot bot, SupportRequestService supportRequestService) {
         this.bot = bot;
+        this.supportRequestService = supportRequestService;
     }
 
     @Override
-    public void execute(Long userId) {
-        if (bot.isRequestTooFrequent(userId)) {
+    public void handle(Long userId) {
+        if (isRequestTooFrequent(userId)) {
             return;
         }
 
@@ -21,5 +29,20 @@ public class SupportCommand implements BotCommandHandler {
         bot.sendTextMessage(userId,
                 "Пожалуйста, опишите вашу проблему. Максимальная длина сообщения - 2000 символов. " +
                         "Вы можете отправить не более одного сообщения раз в 15 минут. Если вы передумали писать, нажмите /profile.");
+    }
+
+    private boolean isRequestTooFrequent(Long userId) {
+        Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
+        if (lastRequest.isPresent()) {
+            LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
+            Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
+            if (duration.toMinutes() < 15) {
+                long minutesLeft = 15 - duration.toMinutes();
+                bot.sendTextMessage(userId, String.format(
+                        "Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
+                return true;
+            }
+        }
+        return false;
     }
 }

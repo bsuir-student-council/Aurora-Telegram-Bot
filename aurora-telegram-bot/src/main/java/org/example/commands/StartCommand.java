@@ -12,7 +12,7 @@ public class StartCommand implements BotCommandHandler {
     }
 
     @Override
-    public void execute(Long userId) {
+    public void handle(Long userId) {
         bot.sendTextButtonsMessage(userId, MultiSessionTelegramBot.loadMessage("start"), "Поехали🚀", "start");
     }
 }

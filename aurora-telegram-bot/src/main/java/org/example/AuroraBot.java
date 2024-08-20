@@ -6,10 +6,13 @@ import org.example.callbacks.AcceptedCallbackHandler;
 import org.example.callbacks.StartCallbackHandler;
 import org.example.callbacks.ToggleVisibilityCallbackHandler;
 import org.example.commands.*;
+import org.example.dialogs.ProfileDialogHandler;
+import org.example.dialogs.PromoteUserDialogHandler;
+import org.example.dialogs.SupportDialogHandler;
 import org.example.interfaces.BotCommandHandler;
 import org.example.enums.DialogMode;
 import org.example.interfaces.CallbackQueryHandler;
-import org.example.models.SupportRequest;
+import org.example.interfaces.DialogHandler;
 import org.example.models.UserInfo;
 import org.example.services.SupportRequestService;
 import org.example.services.UserInfoService;
@@ -25,12 +28,9 @@ import org.telegram.telegrambots.meta.api.objects.commands.scope.BotCommandScope
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.updatesreceivers.DefaultBotSession;
 
-import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import jakarta.annotation.PostConstruct;
@@ -43,7 +43,11 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
     @Getter
     private final ConcurrentHashMap<Long, DialogMode> userModes = new ConcurrentHashMap<>();
+
+    @Getter
     private final ConcurrentHashMap<Long, UserInfo> userInfos = new ConcurrentHashMap<>();
+
+    @Getter
     private final ConcurrentHashMap<Long, Integer> userQuestionCounts = new ConcurrentHashMap<>();
 
     private UserInfoService userInfoService;
@@ -79,8 +83,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/start", new StartCommand(this));
         commandHandlers.put("/profile", new ProfileCommand(this, userInfoService));
         commandHandlers.put("/help", new HelpCommand(this));
-        commandHandlers.put("/restart", new RestartCommand(this, userInfoService, userInfos));
-        commandHandlers.put("/support", new SupportCommand(this));
+        commandHandlers.put("/support", new SupportCommand(this, supportRequestService));
         commandHandlers.put("/admin", new AdminCommand(this, userInfoService));
         commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
@@ -88,15 +91,15 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
     private void registerCallbackHandlers() {
         callbackHandlers.put("start", new StartCallbackHandler(this));
-        callbackHandlers.put("accepted", new AcceptedCallbackHandler(this));
+        callbackHandlers.put("accepted", new AcceptedCallbackHandler(this, userInfoService));
         callbackHandlers.put("toggle_visibility", new ToggleVisibilityCallbackHandler(this, userInfoService));
     }
 
     private void setMyCommands() {
         List<BotCommand> commands = List.of(
+                new BotCommand("/start", "Заполнить анкету заново"),
                 new BotCommand("/profile", "Моя анкета"),
-                new BotCommand("/help", "Помощь"),
-                new BotCommand("/restart", "Заполнить анкету заново")
+                new BotCommand("/help", "Помощь")
         );
 
         try {
@@ -124,7 +127,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     private void handleCommand(Long userId, String command) {
         BotCommandHandler handler = commandHandlers.get(command);
         if (handler != null) {
-            handler.execute(userId);
+            handler.handle(userId);
         } else {
             sendTextMessage(userId, "Неизвестная команда. Попробуйте /start.");
         }
@@ -147,185 +150,19 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
             return;
         }
 
-        switch (currentMode) {
-            case PROFILE -> handleProfileDialog(userId, message);
-            case SUPPORT -> handleSupportDialog(userId, message);
-            case PROMOTE -> handlePromoteUser(userId, message);
-            default -> sendTextMessage(userId, "Неизвестный режим диалога.");
+        DialogHandler handler = getDialogHandler(currentMode);
+        if (handler != null) {
+            handler.handle(userId, message);
+        } else {
+            sendTextMessage(userId, "Неизвестный режим диалога.");
         }
     }
 
-    private void handleSupportDialog(Long userId, String message) {
-        if (isMessageTooLong(message)) {
-            sendTextMessage(userId, "Ваше сообщение слишком длинное. Пожалуйста, сократите его до 2000 символов.");
-            return;
-        }
-
-        if (isRequestTooFrequent(userId)) {
-            return;
-        }
-
-        createAndSaveSupportRequest(userId, message);
-    }
-
-    private boolean isMessageTooLong(String message) {
-        return message.length() > 2000;
-    }
-
-    public boolean isRequestTooFrequent(Long userId) {
-        Optional<SupportRequest> lastRequest = supportRequestService.getLastSupportRequest(userId);
-        if (lastRequest.isPresent()) {
-            LocalDateTime lastRequestTime = lastRequest.get().getCreatedAt();
-            Duration duration = Duration.between(lastRequestTime, LocalDateTime.now());
-            if (duration.toMinutes() < 15) {
-                long minutesLeft = 15 - duration.toMinutes();
-                sendTextMessage(userId, String.format(
-                        "Вы можете отправить сообщение только раз в 15 минут. Пожалуйста, подождите ещё %d минут.", minutesLeft));
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private void createAndSaveSupportRequest(Long userId, String message) {
-        SupportRequest supportRequest = new SupportRequest();
-        supportRequest.setUserId(userId);
-        supportRequest.setMessage(message);
-
-        try {
-            supportRequestService.saveSupportRequest(supportRequest);
-            sendTextMessage(userId, "Ваш запрос в техподдержку успешно отправлен. Спасибо!");
-            userModes.remove(userId);
-        } catch (Exception e) {
-            sendTextMessage(userId, "Произошла ошибка при сохранении запроса. Пожалуйста, попробуйте снова.");
-        }
-    }
-
-    private void handleProfileDialog(Long userId, String message) {
-        if (message.length() > 255) {
-            sendTextMessage(userId, "Ваш ввод слишком длинный. Пожалуйста, сократите его до 255 символов.");
-            return;
-        }
-
-        UserInfo userInfo = userInfos.get(userId);
-        int questionCount = userQuestionCounts.getOrDefault(userId, 1);
-
-        switch (questionCount) {
-            case 1 -> handleNameInput(userId, userInfo, message);
-            case 2 -> handleAgeInput(userId, userInfo, message);
-            case 3 -> handleDiscussionTopicInput(userId, userInfo, message);
-            case 4 -> handleFunFactInput(userId, userInfo, message);
-            default -> sendTextMessage(userId, "Неизвестный этап анкеты.");
-        }
-    }
-
-    private void handleNameInput(Long userId, UserInfo userInfo, String message) {
-        userInfo.setName(message);
-        userQuestionCounts.put(userId, 2);
-        sendTextMessage(userId, "Пожалуйста, укажите ваш возраст.");
-    }
-
-    private void handleAgeInput(Long userId, UserInfo userInfo, String message) {
-        userInfo.setAge(message);
-        userQuestionCounts.put(userId, 3);
-        sendTextMessage(userId, "👀 Что бы вы хотели обсудить?");
-    }
-
-    private void handleDiscussionTopicInput(Long userId, UserInfo userInfo, String message) {
-        userInfo.setDiscussionTopic(message);
-        userQuestionCounts.put(userId, 4);
-        sendTextMessage(userId, "Пожалуйста, поделитесь интересным фактом о себе.");
-    }
-
-    private void handleFunFactInput(Long userId, UserInfo userInfo, String message) {
-        userInfo.setFunFact(message);
-        try {
-            userInfoService.saveUserInfo(userInfo);
-            sendUserProfile(userId, userInfo);
-            userModes.remove(userId);
-        } catch (Exception e) {
-            sendTextMessage(userId, "Произошла ошибка при сохранении профиля. Пожалуйста, попробуйте снова.");
-        }
-    }
-
-    public void sendUserProfile(Long userId, UserInfo userInfo) {
-        String photoUrl = getUserPhotoUrl(userId);
-        String profileMessage = formatUserProfileMessage(userId, userInfo);
-
-        if (photoUrl != null) {
-            sendPhotoMessage(userId, photoUrl, true);
-        }
-        sendTextButtonsMessage(userId, profileMessage, "Редактировать", "accepted", "Сменить статус видимости", "toggle_visibility");
-    }
-
-
-    public String formatUserProfileMessage(Long userId, UserInfo userInfo) {
-        String userAlias = getUserAlias(userId);
-        String contactInfo = (userAlias != null && !userAlias.equals("@null"))
-                ? userAlias
-                : String.format("<a href=\"tg://user?id=%d\">Профиль пользователя</a>", userId);
-
-        String visibilityStatus = userInfo.getIsVisible()
-                ? "\n✅ Ваша анкета видна."
-                : "\n❌ На данный момент вашу анкету никто не видит.";
-
-        return String.format(
-                "Вот так будет выглядеть ваш профиль в сообщении, которое мы пришлём вашему собеседнику:\n⏬\n%s%s",
-                userInfoService.formatUserProfile(userInfo, contactInfo),
-                visibilityStatus
-        );
-    }
-
-    public void askFullName(Long userId) {
-        userModes.put(userId, DialogMode.PROFILE);
-        userQuestionCounts.put(userId, 1);
-
-        UserInfo userInfo = userInfoService.getUserInfoByUserId(userId)
-                .orElseGet(() -> {
-                    UserInfo newUserInfo = new UserInfo();
-                    newUserInfo.setUserId(userId);
-                    return newUserInfo;
-                });
-
-        userInfos.put(userId, userInfo);
-        sendPhotoMessage(userId, "name", false);
-
-        String message = "Пожалуйста, укажите ваше имя.";
-        sendTextMessage(userId, message);
-    }
-
-    private void handlePromoteUser(Long userId, String username) {
-        Long targetUserId = null;
-
-        List<UserInfo> allUsers = userInfoService.getAllUsers();
-
-        for (UserInfo user : allUsers) {
-            String userAlias = getUserAlias(user.getUserId());
-            if (userAlias != null && userAlias.equals(username)) {
-                targetUserId = user.getUserId();
-                break;
-            }
-        }
-
-        if (targetUserId == null) {
-            sendTextMessage(userId, "Пользователь не найден или не зарегистрирован в системе.");
-            return;
-        }
-
-        UserInfo userInfo = userInfoService.getUserInfoByUserId(targetUserId).orElseThrow();
-
-        if (userInfo.getRole() == UserInfo.Role.ADMIN) {
-            sendTextMessage(userId, "Этот пользователь уже является админом.");
-            return;
-        }
-
-        try {
-            userInfo.setRole(UserInfo.Role.ADMIN);
-            userInfoService.saveUserInfo(userInfo);
-            sendTextMessage(userId, "Пользователь успешно повышен до роли Админа.");
-            userModes.remove(userId);
-        } catch (Exception e) {
-            sendTextMessage(userId, "Произошла ошибка при обновлении роли пользователя.");
-        }
+    private DialogHandler getDialogHandler(DialogMode mode) {
+        return switch (mode) {
+            case PROFILE -> new ProfileDialogHandler(this, userInfoService);
+            case SUPPORT -> new SupportDialogHandler(this, supportRequestService);
+            case PROMOTE -> new PromoteUserDialogHandler(this, userInfoService);
+        };
     }
 }

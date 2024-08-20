@@ -32,7 +32,7 @@ public class ProfileMatchingTask {
         this.auroraBot = auroraBot;
     }
 
-    @Scheduled(cron = "0 0 11 * * ?") // 11:00
+    @Scheduled(cron = "0 0 11 ? * MON") // Runs every Monday at 11:00 AM
     public void sendMatchedProfiles() {
         List<UserInfo> users = userInfoService.getVisibleUsers();
 
