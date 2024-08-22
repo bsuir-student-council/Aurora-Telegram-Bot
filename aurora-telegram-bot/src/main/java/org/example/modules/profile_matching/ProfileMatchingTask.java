@@ -11,6 +11,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,6 +22,7 @@ import static org.example.modules.profile_matching.TextSimilarity.processUserInf
 public class ProfileMatchingTask {
 
     private final UserInfoService userInfoService;
+    private final ProfileMatchingResultService resultService;
     private final AuroraBot auroraBot;
     private final Logger logger = LoggerFactory.getLogger(ProfileMatchingTask.class);
 
@@ -27,14 +30,19 @@ public class ProfileMatchingTask {
     private Long specialUserId;
 
     @Autowired
-    public ProfileMatchingTask(UserInfoService userInfoService, AuroraBot auroraBot) {
+    public ProfileMatchingTask(UserInfoService userInfoService, ProfileMatchingResultService resultService, AuroraBot auroraBot) {
         this.userInfoService = userInfoService;
+        this.resultService = resultService;
         this.auroraBot = auroraBot;
     }
 
     @Scheduled(cron = "0 0 11 ? * MON") // Runs every Monday at 11:00 AM
     public void sendMatchedProfiles() {
         List<UserInfo> users = userInfoService.getVisibleUsers();
+        ProfileMatchingResult result = new ProfileMatchingResult();
+        result.setExecutionTime(LocalDateTime.now());
+        result.setMatchedUsers(new ArrayList<>());
+        result.setUnpairedUsers(new ArrayList<>());
 
         try {
             List<TextSimilarity.SimilarityPair> pairs = processUserInfos(users.toArray(new UserInfo[0]));
@@ -42,14 +50,21 @@ public class ProfileMatchingTask {
 
             boolean[] paired = new boolean[users.size()];
 
-            pairs.forEach(pair -> handlePair(users, paired, pair));
+            pairs.forEach(pair -> {
+                handlePair(users, paired, pair);
+                result.getMatchedUsers().add(pair.userId1() + " <-> " + pair.userId2());
+            });
 
-            handleUnpaired(users, paired);
-
-            logger.info("User profiles sent based on similarity pairs.");
+            handleUnpaired(users, paired, result);
+            result.setStatus("SUCCESS");
         } catch (IOException | org.apache.lucene.queryparser.classic.ParseException e) {
             logger.error("Error processing text similarity: ", e);
+            result.setStatus("FAILED");
+            result.setErrorMessage(e.getMessage());
         }
+
+        resultService.saveResult(result);
+        logger.info("User profiles sent based on similarity pairs.");
     }
 
     private void handlePair(List<UserInfo> users, boolean[] paired, TextSimilarity.SimilarityPair pair) {
@@ -65,7 +80,7 @@ public class ProfileMatchingTask {
         }
     }
 
-    private void handleUnpaired(List<UserInfo> users, boolean[] paired) {
+    private void handleUnpaired(List<UserInfo> users, boolean[] paired, ProfileMatchingResult result) {
         for (int i = 0; i < users.size(); i++) {
             if (!paired[i]) {
                 UserInfo unpairedUser = users.get(i);
@@ -74,6 +89,7 @@ public class ProfileMatchingTask {
                 Optional<UserInfo> specialUserInfo = userInfoService.getUserInfoByUserId(specialUserId);
                 specialUserInfo.ifPresent(info -> sendUserProfile(unpairedUser.getUserId(), info));
 
+                result.getUnpairedUsers().add(unpairedUser.getUserId());
                 logger.info("Unpaired profile sent to special chat ID.");
                 break;
             }
