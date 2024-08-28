@@ -14,4 +14,6 @@ public interface UserInfoRepository extends JpaRepository<UserInfo, Long> {
     long countByIsVisibleTrue();
 
     List<UserInfo> findAllByIsVisibleTrue();
+
+    List<UserInfo> findByRole(UserInfo.Role role);
 }

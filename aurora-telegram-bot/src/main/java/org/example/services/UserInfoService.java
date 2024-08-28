@@ -63,4 +63,8 @@ public class UserInfoService {
                 contactInfo
         );
     }
+
+    public List<UserInfo> getUsersByRole(UserInfo.Role role) {
+        return userInfoRepository.findByRole(role);
+    }
 }

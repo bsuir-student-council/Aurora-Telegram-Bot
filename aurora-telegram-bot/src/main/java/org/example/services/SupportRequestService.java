@@ -24,4 +24,8 @@ public class SupportRequestService {
     public Optional<SupportRequest> getLastSupportRequest(Long userId) {
         return supportRequestRepository.findTopByUserIdOrderByCreatedAtDesc(userId);
     }
+
+    public long countByStatus(SupportRequest.RequestStatus status) {
+        return supportRequestRepository.countByRequestStatus(status);
+    }
 }
