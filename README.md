@@ -4,16 +4,23 @@
 
 ## Содержание
 
-- [Установка](#установка)
-- [Конфигурация](#конфигурация)
-- [Запуск](#запуск)
-- [Альтернативный запуск с Docker](#альтернативный-запуск-с-docker)
-- [Команды Telegram-Бота](#команды-telegram-бота)
-- [Автоматические скрипты](#автоматические-скрипты)
-- [Структура проекта](#структура-проекта)
-- [CI](#ci)
-- [Лицензия](#лицензия)
-- [Контакты](#контакты)
+- [Aurora](#aurora)
+  - [Содержание](#содержание)
+  - [Установка](#установка)
+  - [Конфигурация](#конфигурация)
+  - [Запуск](#запуск)
+  - [Альтернативный запуск с Docker](#альтернативный-запуск-с-docker)
+  - [Команды Telegram-Бота](#команды-telegram-бота)
+  - [Расписание выполнения скриптов](#расписание-выполнения-скриптов)
+  - [Автоматические скрипты](#автоматические-скрипты)
+    - [Подбор пользователей для Random Coffee](#подбор-пользователей-для-random-coffee)
+    - [Ежедневная рассылка сообщений пользователям](#ежедневная-рассылка-сообщений-пользователям)
+    - [Сбор статистики использования бота](#сбор-статистики-использования-бота)
+    - [Отчёт по заявкам в поддержку для администраторов](#отчёт-по-заявкам-в-поддержку-для-администраторов)
+  - [Структура проекта](#структура-проекта)
+  - [CI](#ci)
+  - [Лицензия](#лицензия)
+  - [Контакты](#контакты)
 
 ## Установка
 
@@ -25,23 +32,28 @@
 
 ## Конфигурация
 
-Перед запуском приложения настройте переменные среды в файле `src/main/resources/application.properties`:
+Перед запуском приложения необходимо создать файл `.env` в корневом каталоге проекта и указать в нём следующие переменные среды:
 
-```properties
+```env
 # Database Configuration
-spring.datasource.url=jdbc:postgresql://localhost:5432/YOUR_DB_NAME
-spring.datasource.username=YOUR_DB_USERNAME
-spring.datasource.password=YOUR_DB_PASSWORD
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/YOUR_DB_NAME
+SPRING_DATASOURCE_USERNAME=YOUR_DB_USERNAME
+SPRING_DATASOURCE_PASSWORD=YOUR_DB_PASSWORD
+
+# Logging Configuration
+LOGGING_LEVEL_ROOT=INFO
 
 # Telegram API Configuration
-telegram.bot.name=YOUR_BOT_NAME
-telegram.bot.token=YOUR_BOT_TOKEN
+TELEGRAM_BOT_NAME=YOUR_BOT_NAME
+TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
 
 # Special User ID
-special.user.id=YOUR_SPECIAL_USER_ID
+SPECIAL_USER_ID=YOUR_SPECIAL_USER_ID
 ```
 
-Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN` на соответствующие значения. `YOUR_SPECIAL_USER_ID` должен быть ID человека, который будет добавлен в выборку при нечётном количестве анкет, чтобы количество всегда было чётным и у всех была пара.
+Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN`, `YOUR_SPECIAL_USER_ID` на соответствующие значения. `YOUR_SPECIAL_USER_ID` должен быть ID человека, который будет добавлен в выборку при нечётном количестве анкет, чтобы количество всегда было чётным и у всех была пара.
+
+Конфигурационный файл `application.properties` будет автоматически использовать значения, указанные в `.env` файле, для настройки приложения.
 
 ## Запуск
 
@@ -87,7 +99,6 @@ special.user.id=YOUR_SPECIAL_USER_ID
 **Команды пользователя:**
 
 - **`/start`**: Инициализация работы с ботом и начало взаимодействия.
-- **`/restart`**: Перезапуск процесса заполнения анкеты.
 - **`/profile`**: Просмотр текущей анкеты пользователем.
 - **`/help`**: Получение справочной информации о функционале бота и доступных командах.
 - **`/support`**: Отправка запроса в техническую поддержку.
@@ -97,12 +108,21 @@ special.user.id=YOUR_SPECIAL_USER_ID
 - **`/admin`**: Отображение всех доступных команд с кратким описанием.
 - **`/list_admins`**: Получение списка администраторов.
 - **`/promote`**: Повышение пользователя до администратора.
+  
+## Расписание выполнения скриптов
+
+Стандартное время срабатывания автоматических скриптов в Aurora:
+
+- **Подбор пользователей для Random Coffee**: Каждый понедельник в 11:00.
+- **Ежедневная рассылка сообщений пользователям(при наличии)**: Ежедневно в 18:00.
+- **Сбор статистики использования бота**: Ежедневно в 18:00.
+- **Отчёт по заявкам в поддержку для администраторов**: Ежедневно в 19:00.
 
 ## Автоматические скрипты
 
-Aurora использует три ключевых скрипта, работающих по расписанию, для автоматизации задач:
+Aurora использует четыре ключевых скрипта, работающих по расписанию, для автоматизации задач:
 
-### ProfileMatchingTask
+### Подбор пользователей для Random Coffee
 
 Скрипт `ProfileMatchingTask.java` отвечает за подбор пользователей на основе их анкет. Алгоритм:
 
@@ -113,7 +133,7 @@ Aurora использует три ключевых скрипта, работа
 5. Случайное распределение оставшихся анкет.
 6. Соединение оставшейся анкеты с администратором, если количество анкет нечётное.
 
-### DailyMessageTask
+### Ежедневная рассылка сообщений пользователям
 
 Скрипт `DailyMessageTask.java` ежедневно отправляет сообщения всем пользователям. Алгоритм:
 
@@ -121,13 +141,21 @@ Aurora использует три ключевых скрипта, работа
 2. В заданное время скрипт проверяет наличие неотправленных сообщений.
 3. Рассылка сообщений всем пользователям.
 
-### ProfileStatisticsTask
+### Сбор статистики использования бота
 
 Скрипт `ProfileStatisticsTask.java` собирает ежедневную статистику использования бота. Алгоритм:
 
 1. Подсчёт общего количества пользователей.
 2. Подсчёт количества анкет в базе данных.
 3. Сохранение собранных данных для анализа.
+
+### Отчёт по заявкам в поддержку для администраторов
+
+Скрипт `DailySupportRequestReportTask.java` ежедневно отправляет отчёт по заявкам в техническую поддержку всем администраторам. Алгоритм:
+
+1. Подсчёт количества открытых заявок (`OPEN`).
+2. Подсчёт количества заявок в работе (`IN_PROGRESS`).
+3. Формирование и отправка отчёта всем администраторам через Telegram.
 
 ## Структура проекта
 
@@ -138,24 +166,38 @@ aurora-telegram-bot/
 │   │   ├── java/
 │   │   │   └── org/
 │   │   │       └── example/
+│   │   │           ├── callbacks/
+│   │   │           │   ├── AcceptedCallbackHandler.java
+│   │   │           │   ├── StartCallbackHandler.java
+│   │   │           │   └── ToggleVisibilityCallbackHandler.java
 │   │   │           ├── commands/
 │   │   │           │   ├── AdminCommand.java
 │   │   │           │   ├── AdminsListCommand.java
 │   │   │           │   ├── HelpCommand.java
 │   │   │           │   ├── ProfileCommand.java
 │   │   │           │   ├── PromoteCommand.java
-│   │   │           │   ├── RestartCommand.java
 │   │   │           │   ├── StartCommand.java
 │   │   │           │   └── SupportCommand.java
+│   │   │           ├── dialogs/
+│   │   │           │   ├── ProfileDialogHandler.java
+│   │   │           │   ├── PromoteUserDialogHandler.java
+│   │   │           │   └── SupportDialogHandler.java
 │   │   │           ├── enums/
 │   │   │           │   └── DialogMode.java
 │   │   │           ├── interfaces/
-│   │   │           │   └── BotCommandHandler.java
+│   │   │           │   ├── BotCommandHandler.java
+│   │   │           │   ├── CallbackQueryHandler.java
+│   │   │           │   └── DialogHandler.java
 │   │   │           ├── models/
 │   │   │           │   ├── SupportRequest.java
 │   │   │           │   └── UserInfo.java
 │   │   │           ├── modules/
+│   │   │           │   ├── dailly_support_requests/
+│   │   │           │   │   └── DailySupportRequestReportTask.java
 │   │   │           │   ├── profile_matching/
+│   │   │           │   │   ├── ProfileMatchingResult.java
+│   │   │           │   │   ├── ProfileMatchingResultRepository.java
+│   │   │           │   │   ├── ProfileMatchingResultService.java
 │   │   │           │   │   ├── ProfileMatchingTask.java
 │   │   │           │   │   └── TextSimilarity.java
 │   │   │           │   ├── regular_messages/
@@ -174,7 +216,7 @@ aurora-telegram-bot/
 │   │   │           ├── services/
 │   │   │           │   ├── SupportRequestService.java
 │   │   │           │   └── UserInfoService.java
-│   │   │           ├── AuroraBotApplication.java
+│   │   │           ├── AuroraApplication.java
 │   │   │           ├── AuroraBot.java
 │   │   │           └── MultiSessionTelegramBot.java
 │   │   ├── resources/
@@ -185,7 +227,8 @@ aurora-telegram-bot/
 │   │   │   │   ├── info.txt
 │   │   │   │   └── start.txt
 │   │   │   └── application.properties
-├── pom.xml
+├── .env
+└── pom.xml
 ```
 
 ## CI
