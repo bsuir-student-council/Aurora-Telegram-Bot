@@ -22,6 +22,10 @@ ARG JAR_FILE=/usr/app/target/*.jar
 # Copy the built jar file to the runner location
 COPY --from=build $JAR_FILE /app/runner.jar
 
+# Copy resources
+COPY --from=build $HOME/src/main/resources/images /app/images
+COPY --from=build $HOME/src/main/resources/messages /app/messages
+
 EXPOSE 8080
 
 # Command to run the application
