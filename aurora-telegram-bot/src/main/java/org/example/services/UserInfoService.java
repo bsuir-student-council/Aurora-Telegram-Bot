@@ -51,7 +51,7 @@ public class UserInfoService {
                         %s
                         Возраст: %s
 
-                        Что интересно: %s
+                        Интересно обсудить: %s
                         Фан-факт: %s
 
                         Напишите собеседнику в Telegram – %s

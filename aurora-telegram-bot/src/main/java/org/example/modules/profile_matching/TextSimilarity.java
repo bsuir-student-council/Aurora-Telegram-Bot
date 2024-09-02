@@ -22,9 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.List;
+import java.util.*;
 
 public class TextSimilarity {
 
@@ -42,7 +40,11 @@ public class TextSimilarity {
             try (IndexReader reader = DirectoryReader.open(directory)) {
                 List<SimilarityPair> similarities = findSimilarities(userInfos, analyzer, reader);
                 logger.info("Found {} similarity pairs", similarities.size());
-                return similarities;
+
+                // Post-process to pair users without a match
+                List<SimilarityPair> finalPairs = postProcessPairs(userInfos, similarities);
+                logger.info("Final number of pairs: {}", finalPairs.size());
+                return finalPairs;
             }
         }
     }
@@ -80,6 +82,36 @@ public class TextSimilarity {
         similarityPairs.sort(Comparator.comparingDouble(SimilarityPair::score).reversed());
         logger.info("Similarity finding completed.");
         return similarityPairs;
+    }
+
+    private static List<SimilarityPair> postProcessPairs(UserInfo[] userInfos, List<SimilarityPair> similarityPairs) {
+        Set<Long> pairedUsers = new HashSet<>();
+        List<SimilarityPair> finalPairs = new ArrayList<>(similarityPairs);
+
+        for (SimilarityPair pair : similarityPairs) {
+            pairedUsers.add(pair.userId1());
+            pairedUsers.add(pair.userId2());
+        }
+
+        List<UserInfo> unpairedUsers = new ArrayList<>();
+        for (UserInfo userInfo : userInfos) {
+            if (!pairedUsers.contains(userInfo.getUserId())) {
+                unpairedUsers.add(userInfo);
+            }
+        }
+
+        Collections.shuffle(unpairedUsers);
+        for (int i = 0; i < unpairedUsers.size() - 1; i += 2) {
+            finalPairs.add(new SimilarityPair(unpairedUsers.get(i).getUserId(), unpairedUsers.get(i + 1).getUserId(), 0.0f));
+            logger.debug("Randomly paired unpaired users: {} <-> {}", unpairedUsers.get(i).getUserId(), unpairedUsers.get(i + 1).getUserId());
+        }
+
+        // If there's an odd user out, they remain unpaired
+        if (unpairedUsers.size() % 2 != 0) {
+            logger.warn("User {} remains unpaired.", unpairedUsers.get(unpairedUsers.size() - 1).getUserId());
+        }
+
+        return finalPairs;
     }
 
     public record SimilarityPair(Long userId1, Long userId2, float score) {
