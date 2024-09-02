@@ -32,28 +32,28 @@
 
 ## Конфигурация
 
-Перед запуском приложения необходимо создать файл `.env` в корневом каталоге проекта и указать в нём следующие переменные среды:
+Перед запуском приложения необходимо указать настройки в файле `application.properties`, который должен находиться в корневом каталоге проекта. Пример содержания файла:
 
-```env
+```properties
 # Database Configuration
-SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/YOUR_DB_NAME
-SPRING_DATASOURCE_USERNAME=YOUR_DB_USERNAME
-SPRING_DATASOURCE_PASSWORD=YOUR_DB_PASSWORD
+spring.datasource.url=jdbc:postgresql://localhost:5432/YOUR_DB_NAME
+spring.datasource.username=YOUR_DB_USERNAME
+spring.datasource.password=YOUR_DB_PASSWORD
 
 # Logging Configuration
-LOGGING_LEVEL_ROOT=INFO
+logging.level.root=INFO
 
 # Telegram API Configuration
-TELEGRAM_BOT_NAME=YOUR_BOT_NAME
-TELEGRAM_BOT_TOKEN=YOUR_BOT_TOKEN
+telegram.bot.name=YOUR_BOT_NAME
+telegram.bot.token=YOUR_BOT_TOKEN
 
 # Special User ID
-SPECIAL_USER_ID=YOUR_SPECIAL_USER_ID
+special.user.id=YOUR_SPECIAL_USER_ID
 ```
 
-Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN`, `YOUR_SPECIAL_USER_ID` на соответствующие значения. `YOUR_SPECIAL_USER_ID` должен быть ID человека, который будет добавлен в выборку при нечётном количестве анкет, чтобы количество всегда было чётным и у всех была пара.
+Замените `YOUR_DB_NAME`, `YOUR_DB_USERNAME`, `YOUR_DB_PASSWORD`, `YOUR_BOT_NAME`, `YOUR_BOT_TOKEN`, `YOUR_SPECIAL_USER_ID` на соответствующие значения. Переменная `special.user.id` должна содержать ID пользователя, который будет добавлен в выборку при нечётном количестве анкет, чтобы количество всегда было чётным и у всех была пара.
 
-Конфигурационный файл `application.properties` будет автоматически использовать значения, указанные в `.env` файле, для настройки приложения.
+Конфигурационный файл `application.properties` обеспечивает настройку приложения с использованием указанных значений.
 
 ## Запуск
 
@@ -227,7 +227,6 @@ aurora-telegram-bot/
 │   │   │   │   ├── info.txt
 │   │   │   │   └── start.txt
 │   │   │   └── application.properties
-├── .env
 └── pom.xml
 ```
 
