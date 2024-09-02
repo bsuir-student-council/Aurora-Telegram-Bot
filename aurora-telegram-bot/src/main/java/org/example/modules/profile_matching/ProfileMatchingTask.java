@@ -125,7 +125,7 @@ public class ProfileMatchingTask {
         );
 
         if (photoUrl != null) {
-            auroraBot.sendPhotoMessage(userId, photoUrl, true);
+            auroraBot.sendPhotoMessage(userId, photoUrl);
         }
         auroraBot.sendTextMessage(userId, profileMessage);
     }

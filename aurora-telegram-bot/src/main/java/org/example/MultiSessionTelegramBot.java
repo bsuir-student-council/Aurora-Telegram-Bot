@@ -112,17 +112,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      *
      * @param userId   the user ID
      * @param photoKey the photo key or file ID
-     * @param isFileId whether the photo key is a file ID
      */
-    public void sendPhotoMessage(Long userId, String photoKey, boolean isFileId) {
+    public void sendPhotoMessage(Long userId, String photoKey) {
         SendPhoto photoMessage = new SendPhoto();
 
-        if (isFileId) {
-            photoMessage.setPhoto(new InputFile(photoKey));
-        } else {
-            InputStream is = loadImage(photoKey);
-            photoMessage.setPhoto(new InputFile(is, photoKey));
-        }
+        photoMessage.setPhoto(new InputFile(photoKey));
 
         photoMessage.setParseMode(ParseMode.HTML);
         photoMessage.setChatId(userId);

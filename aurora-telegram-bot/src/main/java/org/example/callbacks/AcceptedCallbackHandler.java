@@ -21,8 +21,16 @@ public class AcceptedCallbackHandler implements CallbackQueryHandler {
 
     @Override
     public void handle(Long userId, Integer messageId) {
-        String baseMessage = MultiSessionTelegramBot.loadMessage("info");
-        String updatedMessage = String.format("%s\n\n➪ Принято 🫡", baseMessage);
+        String updatedMessage = """
+                > Вы заполняете анкету из трёх вопросов.
+
+                > Каждую неделю наш алгоритм анализирует анкеты и выбирает для вас идеального партнёра для беседы.
+
+                > День и время, формат встречи вы выбираете сами — свяжитесь с новым знакомым и договоритесь о встрече; если планы изменились, предупредите партнёра заранее.
+
+                > Если собеседник не отвечает, напишите в бот, и мы подберём вам нового собеседника.
+
+                ➪ Принято 🫡""";
 
         bot.editTextMessageWithButtons(userId, messageId, updatedMessage);
 
@@ -34,7 +42,6 @@ public class AcceptedCallbackHandler implements CallbackQueryHandler {
 
         bot.getUserInfos().put(userId, userInfo);
 
-        bot.sendPhotoMessage(userId, "name", false);
         bot.sendTextMessage(userId, "Пожалуйста, укажите ваше имя.");
 
         logger.info("Handled accepted callback for userId: " + userId);

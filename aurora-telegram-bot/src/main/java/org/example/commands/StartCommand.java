@@ -14,7 +14,13 @@ public class StartCommand implements BotCommandHandler {
 
     @Override
     public void handle(Long userId) {
-        String startMessage = MultiSessionTelegramBot.loadMessage("start");
+        String startMessage = """
+                Привет! Я Аврора, твой бот для Random Coffee! ☕️
+
+                Я помогу тебе найти новых друзей и интересных собеседников.
+                Каждую неделю я буду подбирать для тебя нового интересного человека на основе твоих интересов.
+
+                Готов к неожиданным знакомствам?""";
         bot.sendTextButtonsMessage(userId, startMessage,
                 "Поехали🚀", "start");
     }

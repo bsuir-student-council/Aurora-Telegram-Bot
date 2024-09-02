@@ -31,7 +31,7 @@ public class ProfileCommand implements BotCommandHandler {
             String profileMessage = buildProfileMessage(userId, userInfo);
 
             if (photoUrl != null) {
-                bot.sendPhotoMessage(userId, photoUrl, true);
+                bot.sendPhotoMessage(userId, photoUrl);
             }
             bot.sendTextButtonsMessage(userId, profileMessage,
                     "Редактировать", "accepted",
