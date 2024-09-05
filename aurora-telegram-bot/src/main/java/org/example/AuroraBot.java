@@ -95,7 +95,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/admin", new AdminCommand(this, userInfoService));
         commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
-        commandHandlers.put("/match", new MatchCommand(this, new ProfileMatchingTask(userInfoService, resultService, this)));
+        commandHandlers.put("/match", new MatchCommand(this, new ProfileMatchingTask(userInfoService, resultService, this), userInfoService));
     }
 
     private void registerCallbackHandlers() {
