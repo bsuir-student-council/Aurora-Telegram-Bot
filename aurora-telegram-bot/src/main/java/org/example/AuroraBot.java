@@ -13,6 +13,8 @@ import org.example.enums.DialogMode;
 import org.example.interfaces.CallbackQueryHandler;
 import org.example.interfaces.DialogHandler;
 import org.example.models.UserInfo;
+import org.example.modules.profile_matching.ProfileMatchingResultService;
+import org.example.modules.profile_matching.ProfileMatchingTask;
 import org.example.services.SupportRequestService;
 import org.example.services.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,6 +54,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
 
     private final UserInfoService userInfoService;
     private final SupportRequestService supportRequestService;
+    private final ProfileMatchingResultService resultService;
 
     @Value("${telegram.bot.name}")
     private String botName;
@@ -60,9 +63,10 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     private String botToken;
 
     @Autowired
-    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService) {
+    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService, ProfileMatchingResultService resultService) {
         this.userInfoService = userInfoService;
         this.supportRequestService = supportRequestService;
+        this.resultService = resultService;
     }
 
     @PostConstruct
@@ -91,6 +95,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/admin", new AdminCommand(this, userInfoService));
         commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
+        commandHandlers.put("/match", new MatchCommand(this, new ProfileMatchingTask(userInfoService, resultService, this)));
     }
 
     private void registerCallbackHandlers() {

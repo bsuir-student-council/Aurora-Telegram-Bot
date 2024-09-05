@@ -108,6 +108,7 @@ special.user.id=YOUR_SPECIAL_USER_ID
 - **`/admin`**: Отображение всех доступных команд с кратким описанием.
 - **`/list_admins`**: Получение списка администраторов.
 - **`/promote`**: Повышение пользователя до администратора.
+- **`/match`**: Ручной запуск процесса подбора профилей пользователей.
   
 ## Расписание выполнения скриптов
 
@@ -174,6 +175,7 @@ aurora-telegram-bot/
 │   │   │           │   ├── AdminCommand.java
 │   │   │           │   ├── AdminsListCommand.java
 │   │   │           │   ├── HelpCommand.java
+│   │   │           │   ├── MatchCommand.java
 │   │   │           │   ├── ProfileCommand.java
 │   │   │           │   ├── PromoteCommand.java
 │   │   │           │   ├── StartCommand.java

@@ -20,6 +20,7 @@ public class AdminCommand implements BotCommandHandler {
             - /admin: Отображение всех доступных команд с кратким описанием.
             - /list_admins: Вывести список всех администраторов.
             - /promote: Сделать пользователя администратором.
+            - /match: Запустить процесс подбора профилей пользователей.
             """;
 
     private final AuroraBot bot;
