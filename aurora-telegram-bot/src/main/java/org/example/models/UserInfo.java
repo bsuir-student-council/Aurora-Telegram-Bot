@@ -28,7 +28,9 @@ public class UserInfo {
     @Size(max = 500, message = "Интересный факт не должен превышать 500 символов.")
     private String funFact;
 
-    private Boolean isVisible = false;
+    private Boolean isVisible = true;
+
+    private Boolean isBanned = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
