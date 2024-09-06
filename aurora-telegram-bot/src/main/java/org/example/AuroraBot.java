@@ -15,6 +15,7 @@ import org.example.interfaces.DialogHandler;
 import org.example.models.UserInfo;
 import org.example.modules.profile_matching.ProfileMatchingResultService;
 import org.example.modules.profile_matching.ProfileMatchingTask;
+import org.example.modules.statistics.ProfileStatisticsRepository;
 import org.example.services.SupportRequestService;
 import org.example.services.UserInfoService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +56,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     private final UserInfoService userInfoService;
     private final SupportRequestService supportRequestService;
     private final ProfileMatchingResultService resultService;
+    private final ProfileStatisticsRepository profileStatisticsRepository;
 
     @Value("${telegram.bot.name}")
     private String botName;
@@ -63,10 +65,11 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
     private String botToken;
 
     @Autowired
-    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService, ProfileMatchingResultService resultService) {
+    public AuroraBot(UserInfoService userInfoService, SupportRequestService supportRequestService, ProfileMatchingResultService resultService, ProfileStatisticsRepository profileStatisticsRepository) {
         this.userInfoService = userInfoService;
         this.supportRequestService = supportRequestService;
         this.resultService = resultService;
+        this.profileStatisticsRepository = profileStatisticsRepository;
     }
 
     @PostConstruct
@@ -96,6 +99,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/list_admins", new AdminsListCommand(this, userInfoService));
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
         commandHandlers.put("/match", new MatchCommand(this, new ProfileMatchingTask(userInfoService, resultService, this), userInfoService));
+        commandHandlers.put("/profile_stats", new ProfileStatsCommand(this, profileStatisticsRepository));
     }
 
     private void registerCallbackHandlers() {
