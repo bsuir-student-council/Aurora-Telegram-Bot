@@ -1,6 +1,8 @@
 package org.example;
 
 import lombok.NoArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.BotApiMethod;
 import org.telegram.telegrambots.meta.api.methods.GetUserProfilePhotos;
@@ -27,6 +29,7 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
     private String name;
     private String token;
     private final ConcurrentHashMap<Long, Update> userUpdates = new ConcurrentHashMap<>();
+    private final Logger logger = LoggerFactory.getLogger(MultiSessionTelegramBot.class);
 
     /**
      * Initializes the bot with the specified name and token.
@@ -323,7 +326,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         try {
             super.execute(message);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            if (e.getMessage().contains("403")) {
+                logger.warn("Failed to send photo. Bot was blocked by the user. Message: {}", message);
+            } else {
+                logger.error("Failed to execute SendPhoto method. Message: {}, Error: {}", message, e.getMessage());
+            }
         }
     }
 
@@ -338,7 +345,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         try {
             super.sendApiMethod(method);
         } catch (TelegramApiException e) {
-            throw new RuntimeException(e);
+            if (e.getMessage().contains("403")) {
+                logger.warn("Bot was blocked by the user. Method: {}", method);
+            } else {
+                logger.error("Failed to execute Telegram API method. Method: {}, Error: {}", method, e.getMessage());
+            }
         }
     }
 }
