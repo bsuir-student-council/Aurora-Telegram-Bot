@@ -19,4 +19,7 @@ public class ProfileStatistics {
     private LocalDate date;
     private Long totalProfiles;
     private Long activeProfiles;
+    private Long bannedProfiles;
+    private Long botBlockedProfiles;
+    private Long eligibleProfiles;
 }

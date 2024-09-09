@@ -25,18 +25,25 @@ public class ProfileStatisticsTask {
 
     @Scheduled(cron = "0 0 18 * * *") // 18:00
     public void collectProfileStatistics() {
-        logger.info("Collecting profile statistics.");
+        logger.info("Collecting detailed profile statistics.");
 
         long totalProfiles = userInfoRepository.count();
         long activeProfiles = userInfoRepository.countByIsVisibleTrue();
+        long bannedProfiles = userInfoRepository.countByIsBannedTrue();
+        long botBlockedProfiles = userInfoRepository.countByIsBotBlockedTrue();
+        long eligibleProfiles = userInfoRepository.countByIsVisibleTrueAndIsBannedFalseAndIsBotBlockedFalse(); // Добавлено
 
         ProfileStatistics profileStatistics = new ProfileStatistics();
         profileStatistics.setDate(LocalDate.now());
         profileStatistics.setTotalProfiles(totalProfiles);
         profileStatistics.setActiveProfiles(activeProfiles);
+        profileStatistics.setBannedProfiles(bannedProfiles);
+        profileStatistics.setBotBlockedProfiles(botBlockedProfiles);
+        profileStatistics.setEligibleProfiles(eligibleProfiles);
 
         profileStatisticsService.saveProfileStatistics(profileStatistics);
 
-        logger.info("Profile statistics collected: Total profiles = {}, Active profiles = {}", totalProfiles, activeProfiles);
+        logger.info("Profile statistics collected: Total = {}, Active = {}, Banned = {}, BotBlocked = {}, Eligible = {}",
+                totalProfiles, activeProfiles, bannedProfiles, botBlockedProfiles, eligibleProfiles);
     }
 }
