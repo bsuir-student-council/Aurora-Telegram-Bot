@@ -12,9 +12,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import static org.example.modules.profile_matching.TextSimilarity.processUserInfos;
 
@@ -28,6 +26,8 @@ public class ProfileMatchingTask {
 
     @Value("${special.user.id}")
     private Long specialUserId;
+
+    private boolean isRandomMatchingEnabled = true; // Флаг для включения случайного распределения
 
     @Autowired
     public ProfileMatchingTask(UserInfoService userInfoService, ProfileMatchingResultService resultService, AuroraBot auroraBot) {
@@ -49,33 +49,19 @@ public class ProfileMatchingTask {
             List<UserInfo> allUsers = userInfoService.getAllUsers();
             logger.info("Total users before filtering: {}", allUsers.size());
 
-            // Этап 1: Исключаем пользователей с userId == null
-            List<UserInfo> validUserIds = allUsers.stream()
-                    .filter(user -> user.getUserId() != null)
-                    .toList();
-            logger.info("Users with valid userId after filtering: {}, filtered out: {}", validUserIds.size(), allUsers.size() - validUserIds.size());
+            // Фильтрация пользователей
+            List<UserInfo> activeUsers = filterActiveUsers(allUsers);
 
-            // Этап 2: Фильтруем видимых пользователей
-            List<UserInfo> visibleUsers = validUserIds.stream()
-                    .filter(user -> Boolean.TRUE.equals(user.getIsVisible()))
-                    .toList();
-            logger.info("Visible users after filtering: {}, filtered out: {}", visibleUsers.size(), validUserIds.size() - visibleUsers.size());
-
-            // Этап 3: Исключаем пользователей, которые заблокировали бота
-            List<UserInfo> notBlockedByBotUsers = visibleUsers.stream()
-                    .filter(user -> Boolean.FALSE.equals(user.getIsBotBlocked()))
-                    .toList();
-            logger.info("Users not blocked by bot after filtering: {}, filtered out: {}", notBlockedByBotUsers.size(), visibleUsers.size() - notBlockedByBotUsers.size());
-
-            // Этап 4: Исключаем забаненных пользователей
-            List<UserInfo> activeUsers = notBlockedByBotUsers.stream()
-                    .filter(user -> Boolean.FALSE.equals(user.getIsBanned()))
-                    .toList();
-            logger.info("Active users after filtering: {}, filtered out: {}", activeUsers.size(), notBlockedByBotUsers.size() - activeUsers.size());
-
-            // Обрабатываем отфильтрованных пользователей
-            List<TextSimilarity.SimilarityPair> pairs = processUserInfos(activeUsers.toArray(new UserInfo[0]));
-            logger.info("Similarity pairs: {}", pairs);
+            List<TextSimilarity.SimilarityPair> pairs;
+            if (isRandomMatchingEnabled) {
+                // Случайное распределение пользователей по парам
+                pairs = getRandomPairs(activeUsers);
+                logger.info("Randomly assigned pairs: {}", pairs);
+            } else {
+                // Нормальный ход работы через processUserInfos
+                pairs = processUserInfos(activeUsers.toArray(new UserInfo[0]));
+                logger.info("Similarity pairs: {}", pairs);
+            }
 
             boolean[] paired = new boolean[activeUsers.size()];
 
@@ -99,9 +85,49 @@ public class ProfileMatchingTask {
         }
     }
 
+    // Метод для случайного распределения
+    private List<TextSimilarity.SimilarityPair> getRandomPairs(List<UserInfo> users) {
+        List<TextSimilarity.SimilarityPair> pairs = new ArrayList<>();
+        List<UserInfo> shuffledUsers = new ArrayList<>(users);
+        Collections.shuffle(shuffledUsers, new Random());
+
+        for (int i = 0; i < shuffledUsers.size() - 1; i += 2) {
+            pairs.add(new TextSimilarity.SimilarityPair(shuffledUsers.get(i).getUserId(), shuffledUsers.get(i + 1).getUserId(), 0.0f));
+        }
+
+        if (shuffledUsers.size() % 2 != 0) {
+            pairs.add(new TextSimilarity.SimilarityPair(shuffledUsers.get(shuffledUsers.size() - 1).getUserId(), specialUserId, 0.0f));
+        }
+
+        return pairs;
+    }
+
+    // Метод фильтрации активных пользователей
+    private List<UserInfo> filterActiveUsers(List<UserInfo> allUsers) {
+        List<UserInfo> validUserIds = allUsers.stream()
+                .filter(user -> user.getUserId() != null)
+                .toList();
+
+        List<UserInfo> visibleUsers = validUserIds.stream()
+                .filter(user -> Boolean.TRUE.equals(user.getIsVisible()))
+                .toList();
+
+        return visibleUsers.stream()
+                .filter(user -> Boolean.FALSE.equals(user.getIsBotBlocked()) && Boolean.FALSE.equals(user.getIsBanned()))
+                .toList();
+    }
+
     private void handlePair(List<UserInfo> users, boolean[] paired, TextSimilarity.SimilarityPair pair) {
-        int index1 = findIndexByUserId(users, pair.userId1());
-        int index2 = findIndexByUserId(users, pair.userId2());
+        Long userId1 = pair.userId1();
+        Long userId2 = pair.userId2();
+
+        if (userId1 == null || userId2 == null) {
+            logger.error("Skipping pair due to null userId: userId1 = {}, userId2 = {}", userId1, userId2);
+            return;  // Пропускаем пару, если один из пользователей имеет null userId
+        }
+
+        int index1 = findIndexByUserId(users, userId1);
+        int index2 = findIndexByUserId(users, userId2);
 
         if (index1 != -1 && index2 != -1 && !paired[index1] && !paired[index2]) {
             sendUserProfile(users.get(index1).getUserId(), users.get(index2));
