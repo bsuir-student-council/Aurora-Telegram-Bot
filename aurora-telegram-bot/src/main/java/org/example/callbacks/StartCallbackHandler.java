@@ -1,7 +1,6 @@
 package org.example.callbacks;
 
 import org.example.AuroraBot;
-import org.example.MultiSessionTelegramBot;
 import org.example.interfaces.CallbackQueryHandler;
 
 import java.util.logging.Logger;

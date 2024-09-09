@@ -2,7 +2,6 @@ package org.example.commands;
 
 import org.example.AuroraBot;
 import org.example.interfaces.BotCommandHandler;
-import org.example.MultiSessionTelegramBot;
 
 public class StartCommand implements BotCommandHandler {
 

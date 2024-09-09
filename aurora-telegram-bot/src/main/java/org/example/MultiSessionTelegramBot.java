@@ -129,6 +129,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param photoKey the photo key or file ID
      */
     public boolean sendPhotoMessage(Long userId, String photoKey) {
+        if (userId == null) {
+            logger.warn("Message not sent: userId is null.");
+            return false;
+        }
+
         SendPhoto photoMessage = new SendPhoto();
         photoMessage.setPhoto(new InputFile(photoKey));
         photoMessage.setParseMode(ParseMode.HTML);
