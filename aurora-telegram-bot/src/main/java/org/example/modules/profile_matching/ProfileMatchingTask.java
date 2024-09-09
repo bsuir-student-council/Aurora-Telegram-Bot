@@ -142,6 +142,12 @@ public class ProfileMatchingTask {
         for (int i = 0; i < users.size(); i++) {
             if (!paired[i]) {
                 UserInfo unpairedUser = users.get(i);
+
+                if (unpairedUser == null || unpairedUser.getUserId() == null) {
+                    logger.error("Skipping unpaired user due to null user or userId: user = {}, userId = {}", unpairedUser, unpairedUser != null ? unpairedUser.getUserId() : "null");
+                    continue;  // Пропускаем, если пользователь или его userId равны null
+                }
+
                 try {
                     sendUserProfile(specialUserId, unpairedUser);
 

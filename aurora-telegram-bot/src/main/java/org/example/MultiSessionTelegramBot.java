@@ -105,6 +105,11 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param text   the text message
      */
     public boolean sendTextMessage(Long userId, String text) {
+        if (userId == null) {
+            logger.warn("Message not sent: userId is null.");
+            return false;
+        }
+
         SendMessage command = createApiSendMessageCommandWithChat(userId, text);
         command.setParseMode(ParseMode.HTML);
 
