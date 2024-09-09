@@ -104,10 +104,17 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param userId the user ID
      * @param text   the text message
      */
-    public void sendTextMessage(Long userId, String text) {
+    public boolean sendTextMessage(Long userId, String text) {
         SendMessage command = createApiSendMessageCommandWithChat(userId, text);
         command.setParseMode(ParseMode.HTML);
-        executeTelegramApiMethod(command);
+
+        try {
+            executeTelegramApiMethod(command);
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to send text message. UserId: {}, Error: {}", userId, e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -116,15 +123,19 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param userId   the user ID
      * @param photoKey the photo key or file ID
      */
-    public void sendPhotoMessage(Long userId, String photoKey) {
+    public boolean sendPhotoMessage(Long userId, String photoKey) {
         SendPhoto photoMessage = new SendPhoto();
-
         photoMessage.setPhoto(new InputFile(photoKey));
-
         photoMessage.setParseMode(ParseMode.HTML);
         photoMessage.setChatId(userId);
 
-        executeTelegramApiMethod(photoMessage);
+        try {
+            executeTelegramApiMethod(photoMessage);
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to send photo message. UserId: {}, Error: {}", userId, e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -133,15 +144,23 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param userId  the user ID
      * @param text    the text message
      * @param buttons an array of button names and callback data
+     * @return boolean status of message sending (true if successful, false if failed)
      */
-    public void sendTextButtonsMessage(Long userId, String text, String... buttons) {
+    public boolean sendTextButtonsMessage(Long userId, String text, String... buttons) {
         SendMessage command = createApiSendMessageCommandWithChat(userId, text);
         command.setParseMode(ParseMode.HTML);
         if (buttons.length > 0)
             attachButtons(command, List.of(buttons));
 
-        executeTelegramApiMethod(command);
+        try {
+            executeTelegramApiMethod(command);
+            return true;
+        } catch (TelegramApiException e) {
+            logger.error("Failed to send text buttons message. UserId: {}, Error: {}", userId, e.getMessage());
+            return false;
+        }
     }
+
 
     /**
      * Attaches inline buttons to a message.
@@ -290,8 +309,9 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param messageId the message ID to edit
      * @param newText   the new text message
      * @param buttons   an array of button names and callback data
+     * @return boolean status of message editing (true if successful, false if failed)
      */
-    public void editTextMessageWithButtons(Long userId, Integer messageId, String newText, String... buttons) {
+    public boolean editTextMessageWithButtons(Long userId, Integer messageId, String newText, String... buttons) {
         EditMessageText editMessage = new EditMessageText();
         editMessage.setChatId(userId);
         editMessage.setMessageId(messageId);
@@ -300,7 +320,13 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
         if (buttons.length > 0)
             attachButtons(editMessage, List.of(buttons));
 
-        executeTelegramApiMethod(editMessage);
+        try {
+            executeTelegramApiMethod(editMessage);
+            return true;
+        } catch (TelegramApiException e) {
+            logger.error("Failed to edit message with buttons. UserId: {}, MessageId: {}, Error: {}", userId, messageId, e.getMessage());
+            return false;
+        }
     }
 
     /**
@@ -322,16 +348,8 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      *
      * @param message the SendPhoto object
      */
-    private void executeTelegramApiMethod(SendPhoto message) {
-        try {
-            super.execute(message);
-        } catch (TelegramApiException e) {
-            if (e.getMessage().contains("403")) {
-                logger.warn("Failed to send photo. Bot was blocked by the user. Message: {}", message);
-            } else {
-                logger.error("Failed to execute SendPhoto method. Message: {}, Error: {}", message, e.getMessage());
-            }
-        }
+    private void executeTelegramApiMethod(SendPhoto message) throws TelegramApiException {
+        super.execute(message);
     }
 
     /**
@@ -341,15 +359,7 @@ public class MultiSessionTelegramBot extends TelegramLongPollingBot {
      * @param <T>      the type of the method result
      * @param <Method> the type of the method
      */
-    private <T extends Serializable, Method extends BotApiMethod<T>> void executeTelegramApiMethod(Method method) {
-        try {
-            super.sendApiMethod(method);
-        } catch (TelegramApiException e) {
-            if (e.getMessage().contains("403")) {
-                logger.warn("Bot was blocked by the user. Method: {}", method);
-            } else {
-                logger.error("Failed to execute Telegram API method. Method: {}, Error: {}", method, e.getMessage());
-            }
-        }
+    private <T extends Serializable, Method extends BotApiMethod<T>> void executeTelegramApiMethod(Method method) throws TelegramApiException {
+        super.sendApiMethod(method);
     }
 }

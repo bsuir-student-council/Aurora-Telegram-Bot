@@ -32,6 +32,8 @@ public class UserInfo {
 
     private Boolean isBanned = false;
 
+    private Boolean isBotBlocked = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role = Role.USER;
