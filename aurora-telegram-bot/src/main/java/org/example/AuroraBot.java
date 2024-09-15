@@ -5,6 +5,7 @@ import org.example.callbacks.AcceptedCallbackHandler;
 import org.example.callbacks.StartCallbackHandler;
 import org.example.callbacks.ToggleVisibilityCallbackHandler;
 import org.example.commands.*;
+import org.example.dialogs.BroadcastDialogHandler;
 import org.example.dialogs.ProfileDialogHandler;
 import org.example.dialogs.PromoteUserDialogHandler;
 import org.example.dialogs.SupportDialogHandler;
@@ -100,6 +101,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
         commandHandlers.put("/promote", new PromoteCommand(this, userInfoService));
         commandHandlers.put("/match", new MatchCommand(this, new ProfileMatchingTask(userInfoService, resultService, this), userInfoService));
         commandHandlers.put("/profile_stats", new ProfileStatsCommand(this, profileStatisticsRepository));
+        commandHandlers.put("/broadcast", new BroadcastCommand(this, userInfoService));
     }
 
     private void registerCallbackHandlers() {
@@ -176,6 +178,7 @@ public class AuroraBot extends MultiSessionTelegramBot implements CommandLineRun
             case PROFILE -> new ProfileDialogHandler(this, userInfoService);
             case SUPPORT -> new SupportDialogHandler(this, supportRequestService);
             case PROMOTE -> new PromoteUserDialogHandler(this, userInfoService);
+            case BROADCAST -> new BroadcastDialogHandler(this, userInfoService);
         };
     }
 }

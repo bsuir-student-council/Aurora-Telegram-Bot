@@ -15,6 +15,7 @@ public class AdminCommand implements BotCommandHandler {
             - /help: Получение справочной информации о функционале бота и доступных командах.
             - /support: Отправка запроса в техническую поддержку.
             """;
+
     private static final String ADMIN_COMMANDS = """
             Команды администратора:
             - /admin: Отображение всех доступных команд с кратким описанием.
@@ -22,6 +23,7 @@ public class AdminCommand implements BotCommandHandler {
             - /promote: Сделать пользователя администратором.
             - /match: Запустить процесс подбора профилей пользователей.
             - /profile_stats: Просмотреть статистику профилей за последние 7 дней.
+            - /broadcast: Отправить сообщение всем пользователям.
             """;
 
     private final AuroraBot bot;
