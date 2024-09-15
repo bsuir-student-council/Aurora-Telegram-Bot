@@ -9,6 +9,6 @@ import java.util.List;
 
 @Repository
 public interface ProfileStatisticsRepository extends JpaRepository<ProfileStatistics, Long> {
-    @Query("SELECT ps FROM ProfileStatistics ps WHERE ps.date >= :startDate ORDER BY ps.date DESC")
+    @Query("SELECT ps FROM ProfileStatistics ps WHERE ps.date >= :startDate ORDER BY ps.date ASC")
     List<ProfileStatistics> findLast7DaysStatistics(LocalDate startDate);
 }

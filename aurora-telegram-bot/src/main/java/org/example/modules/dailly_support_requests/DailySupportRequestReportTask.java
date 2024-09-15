@@ -30,7 +30,7 @@ public class DailySupportRequestReportTask {
         this.auroraBot = auroraBot;
     }
 
-    @Scheduled(cron = "0 0 19 * * *") // 19:00
+    //    @Scheduled(cron = "0 0 19 * * *") // 19:00
     public void sendDailySupportRequestReport() {
         logger.info("Starting daily support request report task.");
 

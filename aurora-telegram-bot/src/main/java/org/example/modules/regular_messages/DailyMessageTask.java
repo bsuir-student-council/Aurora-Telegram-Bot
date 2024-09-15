@@ -27,7 +27,7 @@ public class DailyMessageTask {
         this.auroraBot = auroraBot;
     }
 
-    @Scheduled(cron = "0 0 18 * * *") // 18:00
+    @Scheduled(cron = "0 0 7 * * *") // 07:00
     public void sendDailyMessage() {
         logger.info("Starting daily message task.");
 

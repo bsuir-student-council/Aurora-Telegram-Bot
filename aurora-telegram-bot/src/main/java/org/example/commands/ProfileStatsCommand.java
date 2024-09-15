@@ -33,12 +33,17 @@ public class ProfileStatsCommand implements BotCommandHandler {
         StringBuilder statsMessage = new StringBuilder("Подробная статистика за последние 7 дней:\n\n");
         DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
-        for (int i = stats.size() - 1; i >= 0; i--) {
-            ProfileStatistics stat = stats.get(i);
+        for (ProfileStatistics stat : stats) {
             String formattedDate = dateFormatter.format(stat.getDate());
-            statsMessage.append(String.format("%-12s Всего профилей: %-5d Активных: %-5d Забанено: %-5d Заблокировали бота: %-5d Участвуют: %-5d\n",
-                    formattedDate, stat.getTotalProfiles(), stat.getActiveProfiles(),
-                    stat.getBannedProfiles(), stat.getBotBlockedProfiles(), stat.getEligibleProfiles()));
+            statsMessage.append(String.format(
+                    "%-12s Всего профилей: %-5d Активных: %-5d Забанено: %-5d Заблокировали бота: %-5d Участвуют: %-5d\n",
+                    formattedDate,
+                    stat.getTotalProfiles(),
+                    stat.getActiveProfiles(),
+                    stat.getBannedProfiles(),
+                    stat.getBotBlockedProfiles(),
+                    stat.getEligibleProfiles()
+            ));
         }
 
         bot.sendTextMessage(userId, statsMessage.toString());

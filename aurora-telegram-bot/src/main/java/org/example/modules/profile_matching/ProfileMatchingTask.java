@@ -27,7 +27,7 @@ public class ProfileMatchingTask {
     @Value("${special.user.id}")
     private Long specialUserId;
 
-    private boolean isRandomMatchingEnabled = true; // Флаг для включения случайного распределения
+    private boolean isRandomMatchingEnabled = false; // Флаг для включения случайного распределения
 
     @Autowired
     public ProfileMatchingTask(UserInfoService userInfoService, ProfileMatchingResultService resultService, AuroraBot auroraBot) {
