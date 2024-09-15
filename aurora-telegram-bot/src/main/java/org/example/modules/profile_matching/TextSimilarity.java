@@ -53,7 +53,10 @@ public class TextSimilarity {
         logger.info("Indexing documents...");
         for (UserInfo userInfo : userInfos) {
             Document doc = new Document();
-            doc.add(new TextField("content", userInfo.getDiscussionTopic(), Field.Store.YES));
+            String content =
+                    "Интересы: " + userInfo.getDiscussionTopic() + "\n" +
+                    "Фан-факт: " + userInfo.getFunFact();
+            doc.add(new TextField("content", content, Field.Store.YES));
             writer.addDocument(doc);
             logger.debug("Indexed document for user: {}", userInfo.getUserId());
         }
